@@ -1,0 +1,6 @@
+{
+    "parent": "fizite:item/template/pipe",
+    "textures": {
+        "main": "fizite:block/copper_pipe"
+    }
+}

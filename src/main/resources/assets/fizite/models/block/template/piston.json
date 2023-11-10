@@ -1,0 +1,32 @@
+{
+	"credit": "Made with Blockbench",
+	"textures": {
+		"0": "fizite:block/piston",
+		"particle": "fizite:block/piston"
+	},
+	"elements": [
+		{
+			"from": [5, 5, 1],
+			"to": [11, 11, 3],
+			"faces": {
+				"north": {"uv": [5, 7, 11, 13], "texture": "#0"},
+				"east": {"uv": [10, 0, 12, 6], "texture": "#0"},
+				"south": {"uv": [5, 7, 11, 13], "texture": "#0"},
+				"west": {"uv": [10, 0, 12, 6], "rotation": 180, "texture": "#0"},
+				"up": {"uv": [10, 0, 12, 6], "rotation": 90, "texture": "#0"},
+				"down": {"uv": [10, 0, 12, 6], "rotation": 270, "texture": "#0"}
+			}
+		},
+		{
+			"from": [6, 6, 3],
+			"to": [10, 10, 15],
+			"faces": {
+				"east": {"uv": [0, 0, 4, 12], "rotation": 90, "texture": "#0"},
+				"south": {"uv": [5, 1, 9, 5], "texture": "#0"},
+				"west": {"uv": [0, 0, 4, 12], "rotation": 90, "texture": "#0"},
+				"up": {"uv": [0, 0, 4, 12], "rotation": 180, "texture": "#0"},
+				"down": {"uv": [0, 0, 4, 12], "rotation": 180, "texture": "#0"}
+			}
+		}
+	]
+}
