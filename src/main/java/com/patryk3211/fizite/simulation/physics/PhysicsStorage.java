@@ -12,49 +12,44 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.PersistentState;
-import net.minecraft.world.dimension.DimensionType;
-import net.minecraft.world.dimension.DimensionTypes;
 import org.jetbrains.annotations.NotNull;
-import org.joml.Vector2f;
 
-import java.awt.*;
 import java.io.*;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.List;
+import java.util.concurrent.Semaphore;
 
 public class PhysicsStorage extends PersistentState {
     public static final String STORAGE_ID = Fizite.MOD_ID + ":physics_world";
     public static final Type<PhysicsStorage> TYPE = new Type<>(PhysicsStorage::new, (nbt) -> new PhysicsStorage(), null);
+
+    private static final List<PhysicsStorage> simulations = new LinkedList<>();
+    private static boolean solverRunning;
+    private static Semaphore solveStart;
+    private static Semaphore solveFinished;
 
     private static class PositionData {
         public final Constraint[] constraints;
         public final RigidBody[] bodies;
         public final Constraint[] internalConstraints;
         public final IPhysicsProvider provider;
-        public Vector2f origin;
 
         public PositionData(IPhysicsProvider provider, RigidBody[] bodies, Constraint[] internalConstraints) {
             this.provider = provider;
             this.bodies = bodies.clone();
             this.internalConstraints = internalConstraints != null ? internalConstraints.clone() : null;
             this.constraints = new Constraint[3];
-            this.origin = null;
         }
     }
 
     private final PhysicsWorld simulation;
     private final Map<BlockPos, PositionData> dataMap;
 
-    private OutputStreamWriter writer;
-
     public PhysicsStorage() {
         simulation = new PhysicsWorld();
         dataMap = new HashMap<>();
-    }
 
-    private void addOutputWriter() throws FileNotFoundException {
-        var fileStream = new FileOutputStream("output.phys");
-        writer = new OutputStreamWriter(fileStream);
+        simulations.add(this);
     }
 
     public void addConstraint(Constraint constraint, BlockPos position, Direction direction) {
@@ -113,6 +108,19 @@ public class PhysicsStorage extends PersistentState {
         return entry != null ? entry.provider : null;
     }
 
+//    private void updateOrigin(Vector2fc delta, BlockPos position, PositionData entry, Set<BlockPos> processedPositions) {
+////        entry.provider.
+////        entry.
+//
+//        for(final var dir : Direction.values()) {
+//            final var neighborPos = position.offset(dir);
+//            if(processedPositions.add(neighborPos)) {
+//                // FIXME: delta should be offset by offset of entry
+//                updateOrigin(delta, position, entry, processedPositions);
+//            }
+//        }
+//    }
+
     public void addBlockEntity(BlockEntity entity) {
         assert entity instanceof IPhysicsProvider : "Only IPhysicsProvider block entities can be added to PhysicsStorage";
         final var provider = (IPhysicsProvider) entity;
@@ -138,8 +146,6 @@ public class PhysicsStorage extends PersistentState {
             if(neighborEntry == null)
                 continue;
             final IPhysicsProvider neighbor = neighborEntry.provider;
-//            if(neighbor == null)
-//                continue;
             final var constraint = PhysicalConnection.makeConnection(dir, provider, neighbor);
             if(constraint != null) {
                 // Can connect to this provider
@@ -153,11 +159,25 @@ public class PhysicsStorage extends PersistentState {
 //                    entry.origin = new Vector2f();
 //                    neighborEntry.origin.add(neighbor.getOffset(dir.getOpposite()), entry.origin);
 //                } else {
-                    // Try to move the neighbor origin
-//                    entry.origin
+//                    // Try to move the neighbor origin
+//                    final var processed = new HashSet<BlockPos>();
+//                    if(!neighborEntry.originLocked) {
+//                        processed.add(entity.getPos());
+//                        updateOrigin(entry.origin, neighborPos, neighborEntry, processed);
+//                    } else {
+//                        processed.add(neighborPos);
+//                        updateOrigin(neighborEntry.origin, entity.getPos(), entry, processed);
+//                    }
 //                }
             }
         }
+
+//        if(entry.origin == null) {
+//            entry.origin = new Vector2f();
+//        }
+//
+//        // Inform the provider of its origin after all calculations are finished
+//        entry.provider.setOrigin(entry.origin);
     }
 
     @Override
@@ -177,31 +197,76 @@ public class PhysicsStorage extends PersistentState {
         return physicsWorld;
     }
 
+    public static void initializeWorker() {
+        Fizite.LOGGER.info("Starting physics solver thread");
+        solveStart = new Semaphore(0, true);
+        solveFinished = new Semaphore(1, true);
+        Thread solverThread = new Thread(() -> {
+            Fizite.LOGGER.info("Physics solver thread started");
+            while (solverRunning) {
+                try {
+                    solveStart.acquire();
+                    simulations.forEach(sim -> sim.simulation.simulate());
+                    solveFinished.release();
+                } catch (InterruptedException e) {
+                    Fizite.LOGGER.error(e.getMessage());
+                } catch (Exception e) {
+                    // Make sure we don't deadlock the main thread after an error
+                    Fizite.LOGGER.error(e.getMessage());
+                    solveFinished.release();
+                }
+            }
+            Fizite.LOGGER.info("Physics solver thread stopped");
+        });
+        solverRunning = true;
+        solverThread.setName("PhysicsSimulatorWorker");
+        solverThread.start();
+    }
+
+    public static void stopWorker() {
+        Fizite.LOGGER.info("Stopping physics solver thread");
+        solverRunning = false;
+        simulations.clear();
+    }
+
     public static void onWorldStart(MinecraftServer minecraftServer, ServerWorld serverWorld) {
         final var storage = new PhysicsStorage();
         serverWorld.getPersistentStateManager().set(STORAGE_ID, storage);
-        if(serverWorld.getDimensionKey().equals(DimensionTypes.OVERWORLD)) {
-            try {
-                storage.addOutputWriter();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
     }
 
     private static int frames = 0;
     public static void onWorldTickStart(ServerWorld serverWorld) {
-        final var physicsStorage = get(serverWorld);
-        physicsStorage.simulation.simulate();
-        if(frames < 100) {
-            if(serverWorld.getDimensionKey().equals(DimensionTypes.OVERWORLD)) {
-                try {
-                    physicsStorage.simulation.dumpState(physicsStorage.writer);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-            ++frames;
+//        final var physicsStorage = get(serverWorld);
+
+//        if(frames < 100) {
+//            if(serverWorld.getDimensionKey().equals(DimensionTypes.OVERWORLD)) {
+//                try {
+//                    if(physicsStorage.writer == null)
+//                        physicsStorage.addOutputWriter();
+//                    physicsStorage.simulation.dumpState(physicsStorage.writer);
+//                } catch (IOException e) {
+//                    throw new RuntimeException(e);
+//                }
+//            }
+//            ++frames;
+//        }
+    }
+
+    public static void onServerTickStart(MinecraftServer minecraftServer) {
+        // Dispatch worker thread
+        solveStart.release();
+    }
+
+    public static void onServerTickEnd(MinecraftServer minecraftServer) {
+        // Wait for worker to finish
+        try {
+            solveFinished.acquire();
+        } catch (InterruptedException e) {
+            Fizite.LOGGER.error(e.getMessage());
         }
+    }
+
+    public static void recordFrames(int simIndex, int count, Runnable finishCallback) {
+        simulations.get(simIndex).simulation.addOutputWriter(count, finishCallback);
     }
 }

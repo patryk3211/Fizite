@@ -18,12 +18,22 @@ public class LockYConstraint extends Constraint {
         final int column = bodies[0].index() * 3;
         final var state = bodies[0].getState();
 
-        J.set(row, column + 1, 1);
-        J.set(row + 1, column + 2, 1);
+        J.unsafe_set(row, column + 1, 1);
+        J.unsafe_set(row + 1, column + 2, 1);
 
-        JDot.set(row + 1, column + 2, 1);
+        JDot.unsafe_set(row + 1, column + 2, 1);
 
-        C.set(row, 0, state.position.y - position);
-        C.set(row + 1, 0, state.positionA);
+        C.unsafe_set(row, 0, state.position.y - position);
+        C.unsafe_set(row + 1, 0, state.positionA);
+    }
+
+    @Override
+    public void restMatrix(int row, DMatrixRMaj C, DMatrixSparseCSC J) {
+        final int column = bodies[0].index() * 3;
+        J.unsafe_set(row, column + 1, 1);
+        J.unsafe_set(row + 1, column + 2, 1);
+
+        C.unsafe_set(row, 0, -position);
+        C.unsafe_set(row + 1, 0, 0);
     }
 }

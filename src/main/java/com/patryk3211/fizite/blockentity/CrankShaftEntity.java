@@ -6,6 +6,7 @@ import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.Constraint;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.PositionConstraint;
+import com.patryk3211.fizite.utility.IDebugOutput;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -16,11 +17,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2f;
 
-public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider {
+public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider, IDebugOutput {
     private static final Vector2f rotationAnchor = new Vector2f(0, 0);
     private static final Vector2f xyAnchor = new Vector2f(0.5f, 0);
-    private static final Vector2f offset = new Vector2f(1, 0);
-    private static final Vector2f zOffset = new Vector2f(0, 0);
 
     private final RigidBody body;
     private final Constraint positionConstraint;
@@ -30,6 +29,16 @@ public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider {
 
         body = new RigidBody();
         positionConstraint = new PositionConstraint(body, 0, 0);
+    }
+
+    public static void serverTick(World world, BlockPos pos, BlockState state, CrankShaftEntity entity) {
+        // Apply a force until 2 rad/s
+        final var physState = entity.body.getState();
+        if(physState.velocityA < 2) {
+            physState.extForceA = 10;
+        } else {
+            physState.extForceA = 0;
+        }
     }
 
     @Override
@@ -65,15 +74,6 @@ public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider {
     }
 
     @Override
-    public Vector2f getOffset(Direction dir) {
-        return switch(dir) {
-            case NORTH -> offset;
-            case EAST, WEST -> zOffset;
-            default -> null;
-        };
-    }
-
-    @Override
     public @NotNull RigidBody[] bodies() {
         return new RigidBody[] { body };
     }
@@ -84,7 +84,11 @@ public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider {
     }
 
     @Override
-    public boolean setOrigin(Vector2f newOrigin) {
-        return false;
+    public String[] debugInfo() {
+        final var state = body.getState();
+        return new String[] {
+                "Angle = " + state.positionA,
+                "Angular Velocity = " + state.velocityA
+        };
     }
 }

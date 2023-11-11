@@ -18,8 +18,6 @@ import org.joml.Vector2f;
 public class ConnectingRodEntity extends BlockEntity implements IPhysicsProvider {
     private static final Vector2f linearAnchor = new Vector2f(0.5f, 0);
     private static final Vector2f xyAnchor = new Vector2f(-0.5f, 0);
-    private static final Vector2f offset = new Vector2f(1, 0);
-    private static final Vector2f nOffset = new Vector2f(-1, 0);
 
     private final RigidBody body;
 
@@ -55,7 +53,7 @@ public class ConnectingRodEntity extends BlockEntity implements IPhysicsProvider
     @Override
     public PhysicalConnection.ConnectionType getConnectionType(Direction dir) {
         return switch(dir) {
-            case NORTH -> PhysicalConnection.ConnectionType.LINEAR;
+            case NORTH -> PhysicalConnection.ConnectionType.LINEAR_BEARING;
             case SOUTH -> PhysicalConnection.ConnectionType.XY;
             default -> PhysicalConnection.ConnectionType.NONE;
         };
@@ -71,14 +69,5 @@ public class ConnectingRodEntity extends BlockEntity implements IPhysicsProvider
     @Nullable
     public Constraint[] internalConstraints() {
         return null;
-    }
-
-    @Override
-    public Vector2f getOffset(Direction dir) {
-        return switch(dir) {
-            case NORTH -> offset;
-            case SOUTH -> nOffset;
-            default -> null;
-        };
     }
 }

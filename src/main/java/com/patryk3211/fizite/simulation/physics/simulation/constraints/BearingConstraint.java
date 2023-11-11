@@ -43,34 +43,51 @@ public class BearingConstraint extends Constraint {
         final var world2Y = anchor2.y * b2Cos + anchor2.x * b2Sin + state2.position.y;
 
         // Changes to x based on body1 positions
-        J.set(row, column1, 1);
-        J.set(row, column1 + 2, -b1Sin * anchor1.x - b1Cos * anchor1.y);
+        J.unsafe_set(row, column1, 1);
+        J.unsafe_set(row, column1 + 2, -b1Sin * anchor1.x - b1Cos * anchor1.y);
 
         // Changes to y based on body1 positions
-        J.set(row + 1, column1 + 1, 1);
-        J.set(row + 1, column1 + 2, b1Cos * anchor1.x - b1Sin * anchor1.y);
+        J.unsafe_set(row + 1, column1 + 1, 1);
+        J.unsafe_set(row + 1, column1 + 2, b1Cos * anchor1.x - b1Sin * anchor1.y);
 
         // Changes to x based on body2 positions
-        J.set(row, column2, -1);
-        J.set(row, column2 + 2, b2Sin * anchor2.x + b2Cos * anchor2.y);
+        J.unsafe_set(row, column2, -1);
+        J.unsafe_set(row, column2 + 2, b2Sin * anchor2.x + b2Cos * anchor2.y);
 
         // Changes to y based on body2 positions
-        J.set(row + 1, column2 + 1, -1);
-        J.set(row + 1, column2 + 2, -b2Cos * anchor2.x + b2Sin * anchor2.y);
+        J.unsafe_set(row + 1, column2 + 1, -1);
+        J.unsafe_set(row + 1, column2 + 2, -b2Cos * anchor2.x + b2Sin * anchor2.y);
 
         // Changes to velocity based on body1 velocity
-        JDot.set(row, column1 + 2, -b1Cos * state1.velocityA * anchor1.x + b1Sin * state1.velocityA * anchor1.y);
-        JDot.set(row + 1, column1 + 2, -b1Sin * state1.velocityA * anchor1.x - b1Cos * state1.velocityA * anchor1.y);
+        JDot.unsafe_set(row, column1 + 2, -b1Cos * state1.velocityA * anchor1.x + b1Sin * state1.velocityA * anchor1.y);
+        JDot.unsafe_set(row + 1, column1 + 2, -b1Sin * state1.velocityA * anchor1.x - b1Cos * state1.velocityA * anchor1.y);
 
         // Changes to velocity based on body2 velocity
-        JDot.set(row, column2 + 2, b2Cos * state2.velocityA * anchor2.x - b2Sin * state2.velocityA * anchor2.y);
-        JDot.set(row + 1, column2 + 2, b2Sin * state2.velocityA * anchor2.x + b2Cos * state2.velocityA * anchor2.y);
+        JDot.unsafe_set(row, column2 + 2, b2Cos * state2.velocityA * anchor2.x - b2Sin * state2.velocityA * anchor2.y);
+        JDot.unsafe_set(row + 1, column2 + 2, b2Sin * state2.velocityA * anchor2.x + b2Cos * state2.velocityA * anchor2.y);
 
         // Additional position stabilization constraint
         final double C1 = world1X - world2X;
         final double C2 = world1Y - world2Y;
 
-        C.set(row, 0, C1);
-        C.set(row + 1, 0, C2);
+        C.unsafe_set(row, 0, C1);
+        C.unsafe_set(row + 1, 0, C2);
+    }
+
+    @Override
+    public void restMatrix(int row, DMatrixRMaj C, DMatrixSparseCSC J) {
+        C.unsafe_set(row, 0, anchor1.x - anchor2.x);
+        C.unsafe_set(row + 1, 0, anchor1.y - anchor2.y);
+
+        final int column1 = bodies[0].index() * 3;
+        final int column2 = bodies[1].index() * 3;
+        J.unsafe_set(row, column1, 1);
+        J.unsafe_set(row, column1 + 2, -anchor1.y);
+        J.unsafe_set(row + 1, column1 + 1, 1);
+        J.unsafe_set(row + 1, column1 + 2, anchor1.x);
+        J.unsafe_set(row, column2, -1);
+        J.unsafe_set(row, column2 + 2, anchor2.y);
+        J.unsafe_set(row + 1, column2 + 1, -1);
+        J.unsafe_set(row + 1, column2 + 2, -anchor2.x);
     }
 }

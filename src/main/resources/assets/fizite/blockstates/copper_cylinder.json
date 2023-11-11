@@ -1,5 +1,6 @@
 {
   "variants": {
-    "": { "model": "fizite:block/copper/cylinder" }
+    "part=cylinder": { "model": "fizite:block/copper/cylinder" },
+    "part=piston": { "model":  "fizite:block/template/piston" }
   }
 }

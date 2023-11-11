@@ -2,6 +2,8 @@ package com.patryk3211.fizite.simulation.physics.simulation;
 
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.Constraint;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.*;
@@ -25,12 +27,14 @@ public class PhysicsWorld {
     private final List<Constraint> constraints;
     private int totalConstraintCount;
     private boolean parametersChanged;
+    private int bodyCount;
 
     // Profiling info
     public long constraintSolveTime;
     public long forceApplyTime;
     public long physicsStepTime;
     public long physicsSolveTime;
+    public long restPositionSolveTime;
 
     public PhysicsWorld() {
         this(DELTA_TIME, STEPS);
@@ -47,6 +51,7 @@ public class PhysicsWorld {
         constraintSolver = new ConstraintSolver(rigidBodies, constraints);
         totalConstraintCount = 0;
         parametersChanged = true;
+        bodyCount = 0;
 
         this.deltaTime = deltaTime;
         this.steps = steps;
@@ -65,6 +70,7 @@ public class PhysicsWorld {
         }
         system.setState(index, body.getState());
         body.assign(index, this);
+        ++bodyCount;
         parametersChanged = true;
     }
 
@@ -72,6 +78,7 @@ public class PhysicsWorld {
         rigidBodies.set(body.index(), null);
         freeIndices.addLast(body.index());
         system.setState(body.index(), null);
+        --bodyCount;
         parametersChanged = true;
     }
 
@@ -89,9 +96,13 @@ public class PhysicsWorld {
     }
 
     public void simulate() {
+        if(bodyCount == 0)
+            return;
+
         if(parametersChanged) {
             constraintSolver.resizeMatrices(totalConstraintCount);
             parametersChanged = false;
+            restPositions();
         }
 
         physicsSolver.start(stepTime, system);
@@ -104,7 +115,8 @@ public class PhysicsWorld {
 
             // Calculate constraint forces
             constraintSolveTime = -System.nanoTime();
-            constraintSolver.step();
+            if(totalConstraintCount != 0)
+                constraintSolver.step();
             constraintSolveTime += System.nanoTime();
 
             // Physics part II
@@ -112,6 +124,19 @@ public class PhysicsWorld {
             physicsSolver.solve();
             physicsSolveTime += System.nanoTime();
         }
+
+        debugWrite();
+    }
+
+    public void restPositions() {
+        if(parametersChanged) {
+            constraintSolver.resizeMatrices(totalConstraintCount);
+            parametersChanged = false;
+        }
+
+        restPositionSolveTime = -System.nanoTime();
+        constraintSolver.restPositions();
+        restPositionSolveTime += System.nanoTime();
     }
 
     public Collection<Constraint> constraints() {
@@ -134,6 +159,12 @@ public class PhysicsWorld {
         }
     }
 
+    // --------======== Debugging stuff ========--------
+
+    private OutputStreamWriter writer = null;
+    private int writerFrameCount = 0;
+    private Runnable finishCallback = null;
+
     private static void dumpBody(OutputStreamWriter fileWriter, RigidBody body) throws IOException {
         final var state = body.getState();
         fileWriter.write("Body" + body.index() + "\t");
@@ -141,11 +172,34 @@ public class PhysicsWorld {
         fileWriter.write(state.velocity.x + "," + state.velocity.y + "," + state.velocityA + "\n");
     }
 
-    public void dumpState(OutputStreamWriter output) throws IOException {
-        for(final var body : rigidBodies) {
-            dumpBody(output, body);
+    public void addOutputWriter(int frameCount, Runnable finishCallback) {
+        try {
+            writer = new OutputStreamWriter(new FileOutputStream("output.phys"));
+            writerFrameCount = frameCount;
+            this.finishCallback = finishCallback;
+        } catch (FileNotFoundException e) {
+            e.printStackTrace(System.err);
         }
-        output.write("%\n");
-        output.flush();
+    }
+
+    private void debugWrite() {
+        try {
+            if(writer != null) {
+                for (final var body : rigidBodies) {
+                    dumpBody(writer, body);
+                }
+                writer.write("%\n");
+                writer.flush();
+                if (writerFrameCount-- <= 0) {
+                    writer.close();
+                    writer = null;
+                    if(finishCallback != null)
+                        finishCallback.run();
+                    finishCallback = null;
+                }
+            }
+        } catch(IOException e) {
+            e.printStackTrace(System.err);
+        }
     }
 }

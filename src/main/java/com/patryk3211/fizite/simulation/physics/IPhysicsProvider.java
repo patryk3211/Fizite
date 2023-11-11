@@ -16,8 +16,6 @@ public interface IPhysicsProvider {
 
     PhysicalConnection.ConnectionType getConnectionType(Direction dir);
 
-    Vector2f getOffset(Direction dir);
-
     /* General properties */
 
     @NotNull
@@ -29,5 +27,4 @@ public interface IPhysicsProvider {
     /* External data hooks (optional) */
 
     default void setExternalConstraint(@NotNull Direction dir, @Nullable Constraint constraint) { }
-    default boolean setOrigin(Vector2f newOrigin) { return true; }
 }

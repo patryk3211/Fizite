@@ -12,8 +12,8 @@ import java.io.OutputStreamWriter;
 
 public class PhysicsTest {
     private static OutputStreamWriter fileWriter;
-    private static final boolean fileOut = true;
-    private static final boolean consoleOut = true;
+    private static final boolean fileOut = false;
+    private static final boolean consoleOut = false;
 
     private static void dumpBody(RigidBody body) {
         final var state = body.getState();
@@ -32,7 +32,7 @@ public class PhysicsTest {
         }
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         try {
             if(fileOut) {
                 FileOutputStream stateFile = new FileOutputStream("run/output.phys");
@@ -67,6 +67,12 @@ public class PhysicsTest {
         world.addConstraint(new BearingConstraint(body2, body3, 2, 0, -1, 0));
         world.addConstraint(new LockYConstraint(body3, 0));
 
+        for(int i = 0; true; ++i) {
+            world.restPositions();
+            if(i % 1000 == 0) System.out.println("restSolve = " + (world.restPositionSolveTime / 1000.0) + "us");
+            Thread.sleep(1);
+        }
+/*
         for(int i = 0; i < 400; ++i) {
 //            if(i > 400) {
 //                body1.getState().extForceA = 10;
@@ -105,6 +111,6 @@ public class PhysicsTest {
             } catch (Exception e) {
                 e.printStackTrace(System.err);
             }
-        }
+        }*/
     }
 }

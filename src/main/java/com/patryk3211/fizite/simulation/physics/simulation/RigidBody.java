@@ -1,8 +1,10 @@
 package com.patryk3211.fizite.simulation.physics.simulation;
 
 import com.patryk3211.fizite.Fizite;
+import net.minecraft.util.math.Vec2f;
 import org.joml.Vector2d;
 import org.joml.Vector2dc;
+import org.joml.Vector2f;
 import org.joml.Vector2fc;
 
 public class RigidBody {
@@ -10,10 +12,15 @@ public class RigidBody {
     private PhysicsWorld world;
     private int rbIndex;
 
+    private final Vector2f restPosition;
+    private float restAngle;
+
     private float mass;
 
     public RigidBody() {
         this.state = new PhysicalState();
+        this.restPosition = new Vector2f();
+        this.restAngle = 0;
         this.rbIndex = -1;
         this.world = null;
         this.mass = 1;
@@ -108,5 +115,18 @@ public class RigidBody {
 
     public PhysicsWorld getWorld() {
         return world;
+    }
+
+    public void setRestPosition(float x, float y, float angle) {
+        this.restPosition.set(x, y);
+        this.restAngle = angle;
+    }
+
+    public Vector2f getRestPosition() {
+        return restPosition;
+    }
+
+    public float getRestAngle() {
+        return restAngle;
     }
 }

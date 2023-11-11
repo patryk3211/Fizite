@@ -9,6 +9,7 @@ import com.patryk3211.fizite.blockentity.CylinderEntity;
 import com.patryk3211.fizite.simulation.gas.GasWorldBoundaries;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
@@ -16,11 +17,27 @@ import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.resource.featuretoggle.FeatureSet;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.StateManager;
+import net.minecraft.state.property.EnumProperty;
+import net.minecraft.util.StringIdentifiable;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 public abstract class PneumaticCylinder extends ModdedBlock implements BlockEntityProvider, ITieredBlock {
+    public enum ModelPart implements StringIdentifiable {
+        CYLINDER, PISTON;
+
+        @Override
+        public String asString() {
+            return switch(this) {
+                case CYLINDER -> "cylinder";
+                case PISTON -> "piston";
+            };
+        }
+    }
+    public static final EnumProperty<ModelPart> MODEL_PART_PROPERTY = EnumProperty.of("part", ModelPart.class);
+
     private final Material material;
     private final float pistonArea;
     private final float strokeLength;
@@ -33,6 +50,14 @@ public abstract class PneumaticCylinder extends ModdedBlock implements BlockEnti
         this.pistonArea = pistonArea;
         this.strokeLength = strokeLength;
         this.pistonTopVolume = pistonTopVolume;
+
+        setDefaultState(getDefaultState()
+                .with(MODEL_PART_PROPERTY, ModelPart.CYLINDER));
+    }
+
+    @Override
+    protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+        builder.add(MODEL_PART_PROPERTY);
     }
 
     @Nullable
@@ -47,8 +72,7 @@ public abstract class PneumaticCylinder extends ModdedBlock implements BlockEnti
         return world.isClient ?
                 null :
                 (w, p, s, t) -> {
-                    if(type != AllBlockEntities.CYLINDER_ENTITY)
-                        throw new IllegalStateException("Cylinder ticker called for non cylinder entity");
+                    assert type == AllBlockEntities.CYLINDER_ENTITY : "Cylinder ticker called for non cylinder entity";
                     CylinderEntity.serverTick(w, p, s, (CylinderEntity) t);
                 };
     }
@@ -76,8 +100,9 @@ public abstract class PneumaticCylinder extends ModdedBlock implements BlockEnti
 
     @Override
     public <T extends ITier> T getTier(Class<T> clazz) {
+        Object out = null;
         if(clazz == Material.class)
-            return (T) Material.COPPER;
-        return null;
+            out = Material.COPPER;
+        return clazz.cast(out);
     }
 }

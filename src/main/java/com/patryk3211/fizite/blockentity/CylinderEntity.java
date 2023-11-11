@@ -13,10 +13,14 @@ import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.Constraint;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.LockYConstraint;
+import com.patryk3211.fizite.utility.IDebugOutput;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.server.command.CommandOutput;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
@@ -24,9 +28,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2f;
 
-public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPhysicsProvider {
+public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPhysicsProvider, IDebugOutput {
 //    private static final NbtKey<Float> NBT_EXTENSION = new NbtKey<>("extension", NbtKey.Type.FLOAT);
-    private static final Vector2f OFFSET = new Vector2f();
     private static final Vector2f PISTON_ANCHOR = new Vector2f(-0.5f, 0);
 
     private final Material material;
@@ -38,8 +41,6 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
     private final RigidBody body;
     private final Constraint linearConstraint;
     private Constraint externalConstraint;
-
-    private final Vector2f origin;
 
     private static Material getMaterial(BlockState state) {
         final var block = state.getBlock();
@@ -68,7 +69,6 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
 
         body = new RigidBody();
         linearConstraint = new LockYConstraint(body, 0);
-        origin = new Vector2f();
     }
 
     @Override
@@ -140,11 +140,6 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
     }
 
     @Override
-    public Vector2f getOffset(Direction dir) {
-        return OFFSET;
-    }
-
-    @Override
     @NotNull
     public RigidBody[] bodies() {
         return new RigidBody[] { body };
@@ -163,8 +158,14 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
     }
 
     @Override
-    public boolean setOrigin(Vector2f newOrigin) {
-        origin.set(newOrigin);
-        return true;
+    public String[] debugInfo() {
+        final var rbOrigin = body.getRestPosition();
+        final var rbPos = body.getState().position;
+        final var rbVel = body.getState().velocity;
+        return new String[] {
+                "Origin = (" + rbOrigin.x + ", " + rbOrigin.y + ")",
+                "Position = (" + rbPos.x + ", " + rbPos.y + ")",
+                "Velocity = (" + rbVel.x + ", " + rbVel.y + ")"
+        };
     }
 }

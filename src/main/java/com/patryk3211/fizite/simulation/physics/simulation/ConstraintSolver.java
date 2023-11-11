@@ -4,10 +4,10 @@ import com.patryk3211.fizite.simulation.physics.simulation.constraints.Constrain
 import org.ejml.data.DMatrixRMaj;
 import org.ejml.data.DMatrixSparseCSC;
 import org.ejml.dense.row.CommonOps_DDRM;
-import org.ejml.interfaces.linsol.LinearSolver;
 import org.ejml.sparse.csc.CommonOps_DSCC;
 
 import java.util.List;
+import java.util.function.BiConsumer;
 
 public class ConstraintSolver {
     private static final double K_D = 2;
@@ -19,6 +19,8 @@ public class ConstraintSolver {
     private DMatrixRMaj W;
     private DMatrixRMaj C;
     private DMatrixRMaj CDot;
+
+//    private DMatrixRMaj qRest;
 
     private DMatrixSparseCSC JT;
 
@@ -33,12 +35,9 @@ public class ConstraintSolver {
     private DMatrixRMaj denseReg1CC;
     private DMatrixRMaj denseReg2CC;
     private DMatrixRMaj denseReg1BC;
-    private DMatrixRMaj denseReg2BC;
 
     private DMatrixRMaj pMatrix;
     private DMatrixRMaj rMatrix;
-
-    private LinearSolver<DMatrixSparseCSC, DMatrixRMaj> solver;
 
     private final List<RigidBody> rigidBodies;
     private final List<Constraint> constraints;
@@ -75,6 +74,7 @@ public class ConstraintSolver {
 
         // Create matrices with new sizes
         qDot = new DMatrixRMaj(bodyCount * 3, 1);
+//        qRest = new DMatrixRMaj(bodyCount * 3, 1);
         J = new DMatrixSparseCSC(totalConstraintCount, bodyCount * 3);
         JDot = new DMatrixSparseCSC(totalConstraintCount, bodyCount * 3);
 
@@ -94,7 +94,6 @@ public class ConstraintSolver {
         denseReg2CC = new DMatrixRMaj(totalConstraintCount, 1);
 
         denseReg1BC = new DMatrixRMaj(bodyCount * 3, 1);
-        denseReg2BC = new DMatrixRMaj(bodyCount * 3, 1);
 
         pMatrix = new DMatrixRMaj(totalConstraintCount, 1);
         rMatrix = new DMatrixRMaj(totalConstraintCount, 1);
@@ -119,8 +118,13 @@ public class ConstraintSolver {
     // J * W * J_T * x = ...
     private void makeLeft(DMatrixRMaj x, DMatrixRMaj output) {
         CommonOps_DSCC.mult(JT, x, denseReg1BC);
-        CommonOps_DDRM.elementMult(denseReg1BC, W, denseReg2BC);
-        CommonOps_DSCC.mult(J, denseReg2BC, output);
+        CommonOps_DDRM.elementMult(denseReg1BC, W);
+        CommonOps_DSCC.mult(J, denseReg1BC, output);
+    }
+
+    private void makeLeftMassless(DMatrixRMaj x, DMatrixRMaj output) {
+        CommonOps_DSCC.mult(JT, x, denseReg1BC);
+        CommonOps_DSCC.mult(J, denseReg1BC, output);
     }
 
     private static double squareMag(DMatrixRMaj matrix) {
@@ -132,8 +136,8 @@ public class ConstraintSolver {
         return mag;
     }
 
-    private boolean solve() {
-        makeLeft(lambda, left);
+    private boolean solve(BiConsumer<DMatrixRMaj, DMatrixRMaj> leftCalculator) {
+        leftCalculator.accept(lambda, left);
 
         CommonOps_DDRM.subtract(right, left, rMatrix);
         if(checkError(rMatrix, right)) {
@@ -142,7 +146,7 @@ public class ConstraintSolver {
 
         pMatrix.setTo(rMatrix);
         for(int i = 0; i < MAX_ITERATIONS; ++i) {
-            makeLeft(pMatrix, left);
+            leftCalculator.accept(pMatrix, left);
 
             final double rkMag = squareMag(rMatrix);
             final double dot = CommonOps_DDRM.dot(pMatrix, left);
@@ -220,7 +224,7 @@ public class ConstraintSolver {
         rightPrepareTime += System.nanoTime();
 
         solveTime = -System.nanoTime();
-        if(!solve()) {
+        if(!solve(this::makeLeft)) {
             System.out.println("Failed to solve");
         }
         CommonOps_DSCC.mult(JT, lambda, cForce);
@@ -239,6 +243,40 @@ public class ConstraintSolver {
             bodyState.acceleration.x = (float) ((fX + bodyState.extForce.x) / body.getMass());
             bodyState.acceleration.y = (float) ((fY + bodyState.extForce.y) / body.getMass());
             bodyState.accelerationA = (float) ((fA + bodyState.extForceA) / body.getMass());
+        }
+    }
+
+    public void restPositions() {
+        int constraintIndex = 0;
+        for (final var constraint : constraints) {
+            constraint.restMatrix(constraintIndex, C, J);
+            constraintIndex += constraint.internalConstraintCount();
+        }
+
+        // Equation:
+        // J * J_T * lambda = -C
+        CommonOps_DDRM.changeSign(C, right);
+        // [-J * qRest - C]
+//        CommonOps_DSCC.mult(J, qRest, denseReg1CC);
+//        CommonOps_DDRM.add(denseReg1CC, C, right);
+//        CommonOps_DDRM.changeSign(right);
+
+        CommonOps_DSCC.transpose(J, JT, null);
+        if (!solve(this::makeLeftMassless)) {
+            System.out.println("Failed to solve");
+        }
+        CommonOps_DSCC.mult(JT, lambda, cForce);
+
+        for (final var body : rigidBodies) {
+            if (body == null)
+                continue;
+            final var row = body.index() * 3;
+
+            body.setRestPosition(
+                    (float) cForce.get(row, 0),
+                    (float) cForce.get(row + 1, 0),
+                    (float) cForce.get(row + 2, 0)
+            );
         }
     }
 }
