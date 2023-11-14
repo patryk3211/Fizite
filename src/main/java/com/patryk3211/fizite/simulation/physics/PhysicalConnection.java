@@ -3,6 +3,7 @@ package com.patryk3211.fizite.simulation.physics;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.BearingConstraint;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.Constraint;
+import com.patryk3211.fizite.simulation.physics.simulation.constraints.RotationConstraint;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.WeldConstraint;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.util.math.Direction;
@@ -41,6 +42,7 @@ public class PhysicalConnection {
         return switch(type) {
             case LINEAR -> new WeldConstraint(body1, body2, anchor1.x, anchor1.y, anchor2.x, anchor2.y);
             case LINEAR_BEARING, XY -> new BearingConstraint(body1, body2, anchor1.x, anchor1.y, anchor2.x, anchor2.y);
+            case ROTATIONAL -> new RotationConstraint(body1, body2);
             default -> throw new UnsupportedOperationException("This connection type is currently unimplemented");
         };
     }

@@ -15,4 +15,6 @@ public class AllBlocks implements BlockRegistryContainer {
     public static final Block CONNECTING_ROD = new ConnectingRod();
 
     public static final Block CRANK_SHAFT = new CrankShaft();
+
+    public static final Block HAND_CRANK = new HandCrank();
 }

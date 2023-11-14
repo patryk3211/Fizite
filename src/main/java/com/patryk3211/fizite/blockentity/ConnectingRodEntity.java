@@ -1,6 +1,7 @@
 package com.patryk3211.fizite.blockentity;
 
 import com.patryk3211.fizite.simulation.physics.IPhysicsProvider;
+import com.patryk3211.fizite.simulation.physics.Networking;
 import com.patryk3211.fizite.simulation.physics.PhysicalConnection;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
@@ -19,12 +20,14 @@ public class ConnectingRodEntity extends BlockEntity implements IPhysicsProvider
     private static final Vector2f linearAnchor = new Vector2f(0.5f, 0);
     private static final Vector2f xyAnchor = new Vector2f(-0.5f, 0);
 
+    private final Vector2f position;
     private final RigidBody body;
 
     public ConnectingRodEntity(BlockPos pos, BlockState state) {
         super(AllBlockEntities.CONNECTING_ROD_ENTITY, pos, state);
 
         body = new RigidBody();
+        position = new Vector2f();
     }
 
     @Override
@@ -33,7 +36,23 @@ public class ConnectingRodEntity extends BlockEntity implements IPhysicsProvider
 
         if(!world.isClient) {
             PhysicsStorage.get((ServerWorld) world).addBlockEntity(this);
+        } else {
+            Networking.sendBlockEntityRequest(pos, world.getRegistryKey());
         }
+    }
+
+    public Vector2f getBodyPosition() {
+        final var p0 = body.getRestPosition();
+        final var p1 = body.getState().position;
+        position.x = (float) (p0.x - p1.x);
+        position.y = (float) (p0.y - p1.y);
+        return position;
+    }
+
+    public float getBodyAngle() {
+        final var a0 = body.getRestAngle();
+        final var a1 = body.getState().positionA;
+        return (float) (a0 - a1);
     }
 
     @Override

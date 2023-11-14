@@ -24,6 +24,10 @@ public interface IPhysicsProvider {
     @Nullable
     Constraint[] internalConstraints();
 
+//    default boolean externalForceReset() {
+//        return false;
+//    }
+
     /* External data hooks (optional) */
 
     default void setExternalConstraint(@NotNull Direction dir, @Nullable Constraint constraint) { }

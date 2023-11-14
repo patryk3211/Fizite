@@ -16,6 +16,8 @@ public class AllBlockEntities implements AutoRegistryContainer<BlockEntityType<?
 
     public static final BlockEntityType<CrankShaftEntity> CRANK_SHAFT_ENTITY = FabricBlockEntityTypeBuilder.create(CrankShaftEntity::new, AllBlocks.CRANK_SHAFT).build();
 
+    public static final BlockEntityType<HandCrankEntity> HAND_CRANK_ENTITY = FabricBlockEntityTypeBuilder.create(HandCrankEntity::new, AllBlocks.HAND_CRANK).build();
+
     @Override
     public Registry<BlockEntityType<?>> getRegistry() {
         return Registries.BLOCK_ENTITY_TYPE;

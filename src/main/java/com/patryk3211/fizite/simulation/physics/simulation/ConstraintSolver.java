@@ -99,8 +99,35 @@ public class ConstraintSolver {
         rMatrix = new DMatrixRMaj(totalConstraintCount, 1);
     }
 
-    private static final double MAX_ERROR = 1E-2;
-    private static final double MIN_ERROR = 1E-3;
+    public void clear() {
+        W = null;
+        qDot = null;
+        J = null;
+        JDot = null;
+
+        extForce = null;
+        cForce = null;
+        C = null;
+        CDot = null;
+
+        JT = null;
+
+        right = null;
+        left = null;
+        lambda = null;
+
+        sparseReg = null;
+        denseReg1CC = null;
+        denseReg2CC = null;
+
+        denseReg1BC = null;
+
+        pMatrix = null;
+        rMatrix = null;
+    }
+
+    private static final double MAX_ERROR = 1E-5;
+    private static final double MIN_ERROR = 1E-6;
     private static final int MAX_ITERATIONS = 1024;
 
     private boolean checkError(DMatrixRMaj x, DMatrixRMaj right) {
@@ -182,6 +209,7 @@ public class ConstraintSolver {
             qDot.unsafe_set(row + 1, 0, state.velocity.y);
             qDot.unsafe_set(row + 2, 0, state.velocityA);
 
+            // TODO: Calculate external forces
             extForce.unsafe_set(row, 0, state.extForce.x);
             extForce.unsafe_set(row + 1, 0, state.extForce.y);
             extForce.unsafe_set(row + 2, 0, state.extForceA);

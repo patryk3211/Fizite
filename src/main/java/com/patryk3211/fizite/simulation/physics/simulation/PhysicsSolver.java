@@ -13,6 +13,12 @@ public class PhysicsSolver {
     private double stageTimeDelta;
 
     public void resize(int newSize) {
+        if(newSize == 0) {
+            initial = null;
+            intermediate = null;
+            return;
+        }
+
         if(initial != null && initial.length > newSize)
             // Don't decrease size TODO: Maybe do if it's a big difference
             return;

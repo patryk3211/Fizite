@@ -7,10 +7,9 @@ import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.Constraint;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.PositionConstraint;
-import com.patryk3211.fizite.utility.IDebugOutput;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
@@ -18,36 +17,33 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2f;
 
-public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider, IDebugOutput {
-    private static final Vector2f rotationAnchor = new Vector2f(0, 0);
-    private static final Vector2f xyAnchor = new Vector2f(0.5f, 0);
+public class HandCrankEntity extends BlockEntity implements IPhysicsProvider {
+    private static final Vector2f ANCHOR = new Vector2f(0, 0);
+
+    private final Direction facing;
 
     private final RigidBody body;
     private final Constraint positionConstraint;
 
-    public CrankShaftEntity(BlockPos pos, BlockState state) {
-        super(AllBlockEntities.CRANK_SHAFT_ENTITY, pos, state);
+    public HandCrankEntity(BlockPos pos, BlockState state) {
+        super(AllBlockEntities.HAND_CRANK_ENTITY, pos, state);
+
+        // Facing is determined at placement and cannot change (at least for now)
+        facing = state.get(Properties.FACING);
 
         body = new RigidBody();
+        body.externalForceReset = true;
         positionConstraint = new PositionConstraint(body, 0, 0);
     }
-
-//    public static void serverTick(World world, BlockPos pos, BlockState state, CrankShaftEntity entity) {
-//        // Apply a force until 2 rad/s
-//        final var physState = entity.body.getState();
-//        if(physState.velocityA < 2) {
-//            physState.extForceA = 10;
-//        } else {
-//            physState.extForceA = 0;
-//        }
-//    }
 
     @Override
     public void setWorld(World world) {
         super.setWorld(world);
 
         if(!world.isClient) {
-            PhysicsStorage.get(world).addBlockEntity(this);
+            final var storage = PhysicsStorage.get(world);
+            storage.addBlockEntity(this);
+//            storage.addToForceReset(body);
         } else {
             Networking.sendBlockEntityRequest(pos, world.getRegistryKey());
         }
@@ -60,20 +56,12 @@ public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider, I
 
     @Override
     public Vector2f getAnchor(Direction dir) {
-        return switch(getConnectionType(dir)) {
-            case XY -> xyAnchor;
-            case ROTATIONAL -> rotationAnchor;
-            default -> throw new IllegalStateException("Unknown connection type");
-        };
+        return ANCHOR;
     }
 
     @Override
     public PhysicalConnection.ConnectionType getConnectionType(Direction dir) {
-        return switch(dir) {
-            case NORTH -> PhysicalConnection.ConnectionType.XY;
-            case EAST, WEST -> PhysicalConnection.ConnectionType.ROTATIONAL;
-            default -> PhysicalConnection.ConnectionType.NONE;
-        };
+        return dir == facing ? PhysicalConnection.ConnectionType.ROTATIONAL : PhysicalConnection.ConnectionType.NONE;
     }
 
     @Override
@@ -86,12 +74,8 @@ public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider, I
         return new Constraint[] { positionConstraint };
     }
 
-    @Override
-    public String[] debugInfo() {
-        final var state = body.getState();
-        return new String[] {
-                "Angle = " + state.positionA,
-                "Angular Velocity = " + state.velocityA
-        };
-    }
+//    @Override
+//    public boolean externalForceReset() {
+//        return true;
+//    }
 }

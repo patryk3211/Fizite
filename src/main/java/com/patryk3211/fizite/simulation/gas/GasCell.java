@@ -142,7 +142,7 @@ public class GasCell {
         totalMoles += deltaN;
     }
 
-    public void changeVolume(double deltaV) {
+    public double changeVolume(double deltaV) {
         final double edgeLength = Math.cbrt(volume + deltaV);
         final double area = edgeLength * edgeLength; // m²
         final double lengthDelta = deltaV / area; // m³ -> m
@@ -150,6 +150,19 @@ public class GasCell {
 
         volume += deltaV;
         kineticEnergy += work;
+        if(kineticEnergy < 0)
+            kineticEnergy = 0;
+        return work;
+    }
+
+    public double changeVolume(double area, double lengthDelta) {
+        final double work = pressure() * area * -lengthDelta; // Pa * m² -> N * m -> J
+
+        volume += area * lengthDelta;
+        kineticEnergy += work;
+        if(kineticEnergy < 0)
+            kineticEnergy = 0;
+        return work;
     }
 
     public void changeTemperature(double deltaT) {

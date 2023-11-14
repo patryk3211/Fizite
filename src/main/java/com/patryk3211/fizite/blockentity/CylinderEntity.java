@@ -1,34 +1,31 @@
 package com.patryk3211.fizite.blockentity;
 
 import com.patryk3211.fizite.block.cylinder.PneumaticCylinder;
+import com.patryk3211.fizite.simulation.physics.*;
+import com.patryk3211.fizite.simulation.physics.simulation.IPhysicsStepHandler;
 import com.patryk3211.fizite.tiers.ITieredBlock;
 import com.patryk3211.fizite.tiers.Material;
 import com.patryk3211.fizite.simulation.gas.GasCell;
 import com.patryk3211.fizite.simulation.gas.GasSimulator;
 import com.patryk3211.fizite.simulation.gas.GasWorldBoundaries;
 import com.patryk3211.fizite.simulation.gas.IGasCellProvider;
-import com.patryk3211.fizite.simulation.physics.IPhysicsProvider;
-import com.patryk3211.fizite.simulation.physics.PhysicalConnection;
-import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.Constraint;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.LockYConstraint;
 import com.patryk3211.fizite.utility.IDebugOutput;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.server.command.CommandOutput;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2f;
+import org.joml.Vector3d;
 
-public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPhysicsProvider, IDebugOutput {
+public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPhysicsProvider, IDebugOutput, IPhysicsStepHandler {
 //    private static final NbtKey<Float> NBT_EXTENSION = new NbtKey<>("extension", NbtKey.Type.FLOAT);
     private static final Vector2f PISTON_ANCHOR = new Vector2f(-0.5f, 0);
 
@@ -40,7 +37,8 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
 
     private final RigidBody body;
     private final Constraint linearConstraint;
-    private Constraint externalConstraint;
+//    private Constraint externalConstraint;
+    private float prevOffset;
 
     private static Material getMaterial(BlockState state) {
         final var block = state.getBlock();
@@ -69,6 +67,9 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
 
         body = new RigidBody();
         linearConstraint = new LockYConstraint(body, 0);
+        prevOffset = 0;
+
+        gasStateCell.set(20000, 5, new Vector3d());
     }
 
     @Override
@@ -79,20 +80,58 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
             // Connect to the neighbor
             // TODO: Use facing property instead of NORTH
             GasWorldBoundaries.getBoundaries((ServerWorld) world).addBlockEntity(this);
-//            IGasCellProvider.connect(this, Direction.NORTH);
-            PhysicsStorage.get((ServerWorld) world).addBlockEntity(this);
+            PhysicsStorage.get(world).addBlockEntity(this);
+        } else {
+            Networking.sendBlockEntityRequest(pos, world.getRegistryKey());
         }
     }
 
-    public static void serverTick(World world, BlockPos position, BlockState state, CylinderEntity tile) {
-        final double internalPressure = tile.gasStateCell.pressure();
+    public float offset() {
+        final var p0 = body.getRestPosition().x;
+        final var p1 = body.getState().position.x;
+        return (float) (p0 - p1);
+    }
+
+    @Override
+    public void onStep(double deltaTime) {
+        final var newOffset = offset();
+        final var delta = newOffset - prevOffset;
+        final var work = gasStateCell.changeVolume(pistonArea, delta);
+        prevOffset = newOffset;
+
+        final double internalPressure = gasStateCell.pressure();
         final double pressureDifference = internalPressure - GasSimulator.ATMOSPHERIC_PRESSURE;
 
-        // Pa = Nm²
-        final double force = pressureDifference / tile.pistonArea;
-//        final var body = tile.physicsData.getBody(0);
-//        body.applyForce(new Vector2(-force, 0));
+        // Pa = N / m²
+        final double force = (pressureDifference * pistonArea * 0.95); // - (delta == 0 ? 0 : work / delta);
+        body.getState().extForce.x = -force;
     }
+
+//    @Override
+//    public void tick() {
+        // TODO: Fix this tomorrow
+//        final var newOffset = offset();
+//        final var delta = newOffset - prevOffset;
+//        final var work = gasStateCell.changeVolume(pistonArea, delta);
+//        prevOffset = newOffset;
+//
+//        final double internalPressure = gasStateCell.pressure();
+//        final double pressureDifference = internalPressure - GasSimulator.ATMOSPHERIC_PRESSURE;
+//
+//        // Pa = N / m²
+//        final double force = (pressureDifference * pistonArea) - (delta == 0 ? 0 : work / delta);
+//        body.getState().extForce.x = -force;
+//    }
+
+//    public static void serverTick(World world, BlockPos position, BlockState state, CylinderEntity tile) {
+//        final double internalPressure = tile.gasStateCell.pressure();
+//        final double pressureDifference = internalPressure - GasSimulator.ATMOSPHERIC_PRESSURE;
+//
+//        // Pa = Nm²
+//        final double force = pressureDifference / tile.pistonArea;
+////        final var body = tile.physicsData.getBody(0);
+////        body.applyForce(new Vector2(-force, 0));
+//    }
 
     @Override
     public void readNbt(NbtCompound nbt) {
@@ -151,11 +190,11 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
         return new Constraint[] { linearConstraint };
     }
 
-    @Override
-    public void setExternalConstraint(@NotNull Direction dir, @Nullable Constraint constraint) {
-        if(dir == Direction.SOUTH)
-            externalConstraint = constraint;
-    }
+//    @Override
+//    public void setExternalConstraint(@NotNull Direction dir, @Nullable Constraint constraint) {
+//        if(dir == Direction.SOUTH)
+//            externalConstraint = constraint;
+//    }
 
     @Override
     public String[] debugInfo() {
@@ -165,7 +204,9 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
         return new String[] {
                 "Origin = (" + rbOrigin.x + ", " + rbOrigin.y + ")",
                 "Position = (" + rbPos.x + ", " + rbPos.y + ")",
-                "Velocity = (" + rbVel.x + ", " + rbVel.y + ")"
+                "Velocity = (" + rbVel.x + ", " + rbVel.y + ")",
+                "Pressure = " + gasStateCell.pressure() + "Pa",
+                "Temperature = " + gasStateCell.temperature() + "K"
         };
     }
 }

@@ -10,6 +10,10 @@ public class PhysicalSystem {
     }
 
     public void resize(int newSize) {
+        if(newSize == 0) {
+            states = null;
+        }
+
         if(states != null && states.length > newSize) {
             length = newSize;
             return;
@@ -43,5 +47,16 @@ public class PhysicalSystem {
 
     public int size() {
         return length;
+    }
+
+    public void copy(PhysicalSystem system) {
+        resize(system.size());
+        for(int i = 0; i < system.size(); ++i) {
+            if(system.states[i] == null)
+                continue;
+            if(states[i] == null)
+                states[i] = new PhysicalState();
+            states[i].copy(system.states[i]);
+        }
     }
 }

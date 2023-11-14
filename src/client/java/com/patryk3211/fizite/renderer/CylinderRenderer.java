@@ -1,14 +1,9 @@
 package com.patryk3211.fizite.renderer;
 
-import com.patryk3211.fizite.block.AllBlocks;
 import com.patryk3211.fizite.block.cylinder.PneumaticCylinder;
 import com.patryk3211.fizite.blockentity.CylinderEntity;
-import net.minecraft.block.BlockState;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.RenderLayers;
+import com.patryk3211.fizite.simulation.ClientPhysicsStorage;
 import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.block.BlockModelRenderer;
-import net.minecraft.client.render.block.BlockModels;
 import net.minecraft.client.render.block.BlockRenderManager;
 import net.minecraft.client.render.block.entity.BlockEntityRenderer;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
@@ -24,7 +19,14 @@ public class CylinderRenderer implements BlockEntityRenderer<CylinderEntity> {
     @Override
     public void render(CylinderEntity entity, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, int overlay) {
         final var state = entity.getCachedState().with(PneumaticCylinder.MODEL_PART_PROPERTY, PneumaticCylinder.ModelPart.PISTON);
+        final var body = entity.bodies()[0];
 
+        final var p0 = body.getRestPosition().x;
+        final var p1 = ClientPhysicsStorage.getInstance().lerpPos(body, tickDelta).x;
+
+        matrices.push();
+        matrices.translate(0, 0, p0 - p1);
         renderer.renderBlockAsEntity(state, matrices, vertexConsumers, light, overlay);
+        matrices.pop();
     }
 }

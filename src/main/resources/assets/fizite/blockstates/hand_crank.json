@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "facing=north": { "model": "fizite:block/hand_crank" },
+    "facing=south": { "model": "fizite:block/hand_crank", "y": 180 },
+    "facing=east": { "model": "fizite:block/hand_crank", "y": 90 },
+    "facing=west": { "model": "fizite:block/hand_crank", "y": -90 },
+    "facing=up": { "model": "fizite:block/hand_crank", "x": -90 },
+    "facing=down": { "model": "fizite:block/hand_crank", "x": 90 }
+  }
+}

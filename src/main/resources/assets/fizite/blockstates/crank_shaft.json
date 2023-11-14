@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "part=static": { "model": "fizite:block/template/crankshaft_body" },
+    "part=dynamic": { "model": "fizite:block/template/crankshaft_moving" }
+  }
+}

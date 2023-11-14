@@ -1,9 +1,6 @@
 package com.patryk3211.fizite.simulation.physics.simulation;
 
-import com.patryk3211.fizite.simulation.physics.simulation.constraints.BearingConstraint;
-import com.patryk3211.fizite.simulation.physics.simulation.constraints.LockYConstraint;
-import com.patryk3211.fizite.simulation.physics.simulation.constraints.PositionConstraint;
-import com.patryk3211.fizite.simulation.physics.simulation.constraints.WeldConstraint;
+import com.patryk3211.fizite.simulation.physics.simulation.constraints.*;
 import org.apache.commons.io.output.NullOutputStream;
 
 import java.io.FileOutputStream;
@@ -12,8 +9,8 @@ import java.io.OutputStreamWriter;
 
 public class PhysicsTest {
     private static OutputStreamWriter fileWriter;
-    private static final boolean fileOut = false;
-    private static final boolean consoleOut = false;
+    private static final boolean fileOut = true;
+    private static final boolean consoleOut = true;
 
     private static void dumpBody(RigidBody body) {
         final var state = body.getState();
@@ -50,7 +47,7 @@ public class PhysicsTest {
         RigidBody body3 = new RigidBody();
         world.addRigidBody(body1);
         world.addRigidBody(body2);
-        world.addRigidBody(body3);
+//        world.addRigidBody(body3);
 
         body1.setMass(1);
         body3.setMass(2);
@@ -62,17 +59,15 @@ public class PhysicsTest {
         body1.getState().velocityA = 2;
 
         world.addConstraint(new PositionConstraint(body1, 0, 0));
-        world.addConstraint(new BearingConstraint(body1, body2, 2, 0, -2, 0));
+        world.addConstraint(new RotationConstraint(body1, body2));
+//        world.addConstraint(new BearingConstraint(body1, body2, 2, 0, -2, 0));
 //        world.addConstraint(new WeldConstraint(body2, body3, 2, 0, -1, 0));
-        world.addConstraint(new BearingConstraint(body2, body3, 2, 0, -1, 0));
-        world.addConstraint(new LockYConstraint(body3, 0));
+//        world.addConstraint(new BearingConstraint(body2, body3, 2, 0, -1, 0));
+//        world.addConstraint(new LockYConstraint(body3, 0));
 
-        for(int i = 0; true; ++i) {
-            world.restPositions();
-            if(i % 1000 == 0) System.out.println("restSolve = " + (world.restPositionSolveTime / 1000.0) + "us");
-            Thread.sleep(1);
-        }
-/*
+        world.restPositions();
+        System.out.println("restSolve = " + (world.restPositionSolveTime / 1000.0) + "us");
+
         for(int i = 0; i < 400; ++i) {
 //            if(i > 400) {
 //                body1.getState().extForceA = 10;
@@ -86,14 +81,13 @@ public class PhysicsTest {
                 System.out.println("Time = " + (i / 20.0f) + "s");
             dumpBody(body1);
             dumpBody(body2);
-            dumpBody(body3);
+//            dumpBody(body3);
             if(consoleOut) {
                 System.out.println("Solve times:");
                 System.out.println("    cSolve = " + (world.constraintSolveTime / 1000.0) + "us");
                 System.out.println("    pStep = " + (world.physicsStepTime / 1000.0) + "us");
                 System.out.println("    pSolve = " + (world.physicsSolveTime / 1000.0) + "us");
-                System.out.println("    forceApply = " + (world.forceApplyTime / 1000.0) + "us");
-                System.out.println("    total = " + ((world.constraintSolveTime + world.physicsStepTime + world.physicsSolveTime + world.forceApplyTime) / 1000.0) + "us");
+                System.out.println("    total = " + ((world.constraintSolveTime + world.physicsStepTime + world.physicsSolveTime) / 1000.0) + "us");
                 System.out.println("    simTime = " + (simTime / 1000.0) + "us");
 
                 System.out.println("System energy = " + world.totalKineticEnergy());
@@ -111,6 +105,6 @@ public class PhysicsTest {
             } catch (Exception e) {
                 e.printStackTrace(System.err);
             }
-        }*/
+        }
     }
 }

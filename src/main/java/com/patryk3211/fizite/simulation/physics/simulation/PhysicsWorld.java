@@ -1,6 +1,8 @@
 package com.patryk3211.fizite.simulation.physics.simulation;
 
+import com.patryk3211.fizite.simulation.Simulator;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.Constraint;
+import org.joml.Vector2d;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -10,11 +12,9 @@ import java.util.*;
 
 public class PhysicsWorld {
     // Default parameters
-    public static final double DELTA_TIME = 1.0f / 20.0f;
+    public static final double DELTA_TIME = Simulator.TICK_RATE; //1.0f / 20.0f;
     public static final int STEPS = 100;
-//    public static final double STEP_TIME = DELTA_TIME / STEPS;
 
-    private final double deltaTime;
     private final int steps;
     private final double stepTime;
 
@@ -29,12 +29,15 @@ public class PhysicsWorld {
     private boolean parametersChanged;
     private int bodyCount;
 
+    private final List<IPhysicsStepHandler> stepHandlers;
+
     // Profiling info
+    public long startTime;
     public long constraintSolveTime;
-    public long forceApplyTime;
     public long physicsStepTime;
     public long physicsSolveTime;
     public long restPositionSolveTime;
+    public long totalTime;
 
     public PhysicsWorld() {
         this(DELTA_TIME, STEPS);
@@ -47,18 +50,27 @@ public class PhysicsWorld {
         rigidBodies = new ArrayList<>();
         freeIndices = new LinkedList<>();
         constraints = new LinkedList<>();
+        stepHandlers = new LinkedList<>();
 
         constraintSolver = new ConstraintSolver(rigidBodies, constraints);
         totalConstraintCount = 0;
         parametersChanged = true;
         bodyCount = 0;
 
-        this.deltaTime = deltaTime;
         this.steps = steps;
         this.stepTime = deltaTime / steps;
     }
 
-    public void addRigidBody(RigidBody body) {
+    public void clear() {
+        system.resize(0);
+        physicsSolver.resize(0);
+        constraintSolver.clear();
+        rigidBodies.clear();
+        freeIndices.clear();
+        constraints.clear();
+    }
+
+    public int addRigidBody(RigidBody body) {
         int index;
         if(freeIndices.isEmpty()) {
             index = rigidBodies.size();
@@ -67,6 +79,30 @@ public class PhysicsWorld {
         } else {
             index = freeIndices.removeFirst();
             rigidBodies.set(index, body);
+        }
+        system.setState(index, body.getState());
+        body.assign(index, this);
+        ++bodyCount;
+        parametersChanged = true;
+        return index;
+    }
+
+    public void addRigidBody(RigidBody body, int index) {
+        if(freeIndices.contains(index)) {
+            freeIndices.remove((Object) index);
+            rigidBodies.set(index, body);
+        } else if(rigidBodies.size() == index) {
+            rigidBodies.add(body);
+            system.resize(index + 1);
+        } else if(rigidBodies.size() < index) {
+            while(rigidBodies.size() < index)
+                rigidBodies.add(null);
+            rigidBodies.add(body);
+            system.resize(index + 1);
+        } else if(rigidBodies.get(index) == null) {
+            rigidBodies.set(index, body);
+        } else {
+            throw new IllegalArgumentException("Given index is already in use");
         }
         system.setState(index, body.getState());
         body.assign(index, this);
@@ -95,10 +131,20 @@ public class PhysicsWorld {
         }
     }
 
+    public void addStepHandler(IPhysicsStepHandler handler) {
+        stepHandlers.add(handler);
+    }
+
+    public void removeStepHandler(IPhysicsStepHandler handler) {
+        stepHandlers.remove(handler);
+    }
+
     public void simulate() {
         if(bodyCount == 0)
             return;
+        totalTime = -System.nanoTime();
 
+        startTime = -System.nanoTime();
         if(parametersChanged) {
             constraintSolver.resizeMatrices(totalConstraintCount);
             parametersChanged = false;
@@ -106,8 +152,12 @@ public class PhysicsWorld {
         }
 
         physicsSolver.start(stepTime, system);
+        startTime += System.nanoTime();
 
         for(int i = 0; i < steps * 4; ++i) {
+            for (IPhysicsStepHandler handler : stepHandlers)
+                handler.onStep(stepTime / 4);
+
             // Physics part I
             physicsStepTime = -System.nanoTime();
             physicsSolver.step();
@@ -124,6 +174,16 @@ public class PhysicsWorld {
             physicsSolver.solve();
             physicsSolveTime += System.nanoTime();
         }
+        totalTime += System.nanoTime();
+
+        for(final var body : rigidBodies) {
+            if(body.externalForceReset) {
+                final var state = body.getState();
+                state.extForce.x = 0;
+                state.extForce.y = 0;
+                state.extForceA = 0;
+            }
+        }
 
         debugWrite();
     }
@@ -139,8 +199,20 @@ public class PhysicsWorld {
         restPositionSolveTime += System.nanoTime();
     }
 
+    public List<RigidBody> bodies() {
+        return rigidBodies;
+    }
+
     public Collection<Constraint> constraints() {
         return constraints;
+    }
+
+    public PhysicalSystem system() {
+        return system;
+    }
+
+    public int bodyCount() {
+        return bodyCount;
     }
 
     public double totalKineticEnergy() {
@@ -165,11 +237,18 @@ public class PhysicsWorld {
     private int writerFrameCount = 0;
     private Runnable finishCallback = null;
 
-    private static void dumpBody(OutputStreamWriter fileWriter, RigidBody body) throws IOException {
+    private static void dumpBody(OutputStreamWriter writer, RigidBody body) throws IOException {
         final var state = body.getState();
-        fileWriter.write("Body" + body.index() + "\t");
-        fileWriter.write(state.position.x + "," + state.position.y + "," + state.positionA + "\t");
-        fileWriter.write(state.velocity.x + "," + state.velocity.y + "," + state.velocityA + "\n");
+        writer.write("Body" + body.index() + "\t");
+        writer.write(state.position.x + "," + state.position.y + "," + state.positionA + "\t");
+        writer.write(state.velocity.x + "," + state.velocity.y + "," + state.velocityA + "\n");
+        dumpVector(writer, body.index() + 100, state.position, state.extForce);
+    }
+
+    private static void dumpVector(OutputStreamWriter writer, int index, Vector2d origin, Vector2d direction) throws IOException {
+        writer.write("Vector" + index + "\t");
+        writer.write(origin.x + "," + origin.y + "\t");
+        writer.write(direction.x + "," + direction.y + "\n");
     }
 
     public void addOutputWriter(int frameCount, Runnable finishCallback) {
@@ -186,6 +265,8 @@ public class PhysicsWorld {
         try {
             if(writer != null) {
                 for (final var body : rigidBodies) {
+                    if(body == null)
+                        continue;
                     dumpBody(writer, body);
                 }
                 writer.write("%\n");

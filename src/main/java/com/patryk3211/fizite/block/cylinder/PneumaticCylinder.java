@@ -1,5 +1,6 @@
 package com.patryk3211.fizite.block.cylinder;
 
+import com.google.common.collect.ImmutableMap;
 import com.patryk3211.fizite.block.ModdedBlock;
 import com.patryk3211.fizite.tiers.ITier;
 import com.patryk3211.fizite.tiers.ITieredBlock;
@@ -12,6 +13,7 @@ import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
@@ -21,8 +23,13 @@ import net.minecraft.state.StateManager;
 import net.minecraft.state.property.EnumProperty;
 import net.minecraft.util.StringIdentifiable;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.function.Function;
 
 public abstract class PneumaticCylinder extends ModdedBlock implements BlockEntityProvider, ITieredBlock {
     public enum ModelPart implements StringIdentifiable {
@@ -37,6 +44,8 @@ public abstract class PneumaticCylinder extends ModdedBlock implements BlockEnti
         }
     }
     public static final EnumProperty<ModelPart> MODEL_PART_PROPERTY = EnumProperty.of("part", ModelPart.class);
+
+    private static final VoxelShape BB_NORTH = createCuboidShape(4, 4, 0, 12, 12, 15);
 
     private final Material material;
     private final float pistonArea;
@@ -66,24 +75,24 @@ public abstract class PneumaticCylinder extends ModdedBlock implements BlockEnti
         return new CylinderEntity(pos, state, material);
     }
 
-    @Nullable
-    @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-        return world.isClient ?
-                null :
-                (w, p, s, t) -> {
-                    assert type == AllBlockEntities.CYLINDER_ENTITY : "Cylinder ticker called for non cylinder entity";
-                    CylinderEntity.serverTick(w, p, s, (CylinderEntity) t);
-                };
-    }
+//    @Nullable
+//    @Override
+//    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
+//        return world.isClient ?
+//                null :
+//                (w, p, s, t) -> {
+//                    assert type == AllBlockEntities.CYLINDER_ENTITY : "Cylinder ticker called for non cylinder entity";
+//                    CylinderEntity.serverTick(w, p, s, (CylinderEntity) t);
+//                };
+//    }
 
     @Override
     protected void onBlockRemoved(BlockState state, World world, BlockPos pos) {
         if(world instanceof final ServerWorld serverWorld) {
             final GasWorldBoundaries boundaries = GasWorldBoundaries.getBoundaries(serverWorld);
             boundaries.removeBoundaries(pos);
-            PhysicsStorage.get(serverWorld).clearPosition(pos);
         }
+        PhysicsStorage.get(world).clearPosition(pos);
     }
 
     public float getPistonArea() {
@@ -96,6 +105,11 @@ public abstract class PneumaticCylinder extends ModdedBlock implements BlockEnti
 
     public float getPistonTopVolume() {
         return pistonTopVolume;
+    }
+
+    @Override
+    public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+        return BB_NORTH;
     }
 
     @Override

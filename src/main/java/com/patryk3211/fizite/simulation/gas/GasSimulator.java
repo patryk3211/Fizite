@@ -1,9 +1,14 @@
 package com.patryk3211.fizite.simulation.gas;
 
+import com.patryk3211.fizite.simulation.Simulator;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Vector3d;
+
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
 
 public class GasSimulator {
     public static final double GAS_CONSTANT = 8.31446261815324; // J / (K * mol)
@@ -12,17 +17,33 @@ public class GasSimulator {
     public static final double CHOKED_FLOW_RATIO = Math.sqrt(HEAT_CAPACITY_RATIO) * Math.pow(2 / (HEAT_CAPACITY_RATIO + 1), (HEAT_CAPACITY_RATIO + 1) / (2 * (HEAT_CAPACITY_RATIO - 1)));
     public static final double ATMOSPHERIC_PRESSURE = 101325; // Assume atmospheric pressure of 1013.25hPa
 
+    private static final List<GasWorldBoundaries> simulations = new LinkedList<>();
+
     public static void onWorldStart(MinecraftServer minecraftServer, ServerWorld world) {
-        world.getPersistentStateManager().set(GasWorldBoundaries.STORAGE_ID, new GasWorldBoundaries());
+        final var storage = new GasWorldBoundaries();
+        world.getPersistentStateManager().set(GasWorldBoundaries.STORAGE_ID, storage);
+        simulations.add(storage);
     }
 
-    public static void onWorldTickStart(ServerWorld world) {
-        final GasWorldBoundaries boundaryData = GasWorldBoundaries.getBoundaries(world);
-
-        for(final var boundary : boundaryData.getAllBoundaries()) {
-            boundary.simulate(1.0 / 20.0);
+    public static void simulateAll() {
+        for (GasWorldBoundaries simulation : simulations) {
+            for (GasBoundary boundary : simulation.getAllBoundaries()) {
+                boundary.simulate(Simulator.TICK_RATE);
+            }
         }
     }
+
+    public static void clearSimulations() {
+        simulations.clear();
+    }
+
+//    public static void onWorldTickStart(ServerWorld world) {
+//        final GasWorldBoundaries boundaryData = GasWorldBoundaries.getBoundaries(world);
+//
+//        for(final var boundary : boundaryData.getAllBoundaries()) {
+//            boundary.simulate(1.0 / 20.0);
+//        }
+//    }
 
     // This method calculates the mass flow rate
     private static double flowRate(double p0, double p1, double t0) {
