@@ -1,6 +1,7 @@
 package com.patryk3211.fizite.simulation.physics;
 
 import com.patryk3211.fizite.Fizite;
+import com.patryk3211.fizite.simulation.physics.simulation.IForceGenerator;
 import com.patryk3211.fizite.simulation.physics.simulation.IPhysicsStepHandler;
 import com.patryk3211.fizite.simulation.physics.simulation.PhysicsWorld;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
@@ -45,7 +46,9 @@ public class PhysicsStorage extends PersistentState {
         public final RigidBody[] bodies;
         public final Constraint[] internalConstraints;
         public final IPhysicsProvider provider;
-        public IPhysicsStepHandler ticker;
+
+        public IPhysicsStepHandler stepHandler;
+        public IForceGenerator forceGenerator;
 
         public PositionData(IPhysicsProvider provider, RigidBody[] bodies, Constraint[] internalConstraints) {
             this.provider = provider;
@@ -57,15 +60,11 @@ public class PhysicsStorage extends PersistentState {
 
     protected final PhysicsWorld simulation;
     protected final Map<BlockPos, PositionData> dataMap;
-//    protected final List<RigidBody> forceResetBodies;
-    private final List<IPhysicsTicker> tickable;
     private ServerWorld world;
 
     public PhysicsStorage() {
         simulation = new PhysicsWorld();
         dataMap = new HashMap<>();
-//        forceResetBodies = new LinkedList<>();
-        tickable = new LinkedList<>();
     }
 
     public void addConstraint(Constraint constraint, BlockPos position, Direction direction) {
@@ -117,11 +116,11 @@ public class PhysicsStorage extends PersistentState {
         }
         for(final var body : entry.bodies) {
             simulation.removeRigidBody(body);
-//            forceResetBodies.remove(body);
         }
-        if(entry.ticker != null)
-            simulation.removeStepHandler(entry.ticker);
-//            tickable.remove(entry.ticker);
+        if(entry.stepHandler != null)
+            simulation.removeStepHandler(entry.stepHandler);
+        if(entry.forceGenerator != null)
+            simulation.removeForceGenerator(entry.forceGenerator);
         dataMap.remove(position);
     }
 
@@ -151,22 +150,28 @@ public class PhysicsStorage extends PersistentState {
         }
     }
 
+    private PositionData createEntry(BlockEntity entity, IPhysicsProvider provider) {
+        final var entry = new PositionData(provider, provider.bodies(), provider.internalConstraints());
+        if(entity instanceof final IPhysicsStepHandler handler) {
+            simulation.addStepHandler(handler);
+            entry.stepHandler = handler;
+        }
+        if(entity instanceof final IForceGenerator generator) {
+            simulation.addForceGenerator(generator);
+            entry.forceGenerator = generator;
+        }
+        return entry;
+    }
+
     public void addBlockEntity(BlockEntity entity) {
         assert entity instanceof IPhysicsProvider : "Only IPhysicsProvider block entities can be added to PhysicsStorage";
         final var provider = (IPhysicsProvider) entity;
 
+        final var entry = createEntry(entity, provider);
+
         // Add all rigid bodies and internal constraints to the simulation
-        final var entry = new PositionData(provider, provider.bodies(), provider.internalConstraints());
-        if(entity instanceof IPhysicsStepHandler) {
-            simulation.addStepHandler((IPhysicsStepHandler) entity);
-            entry.ticker = (IPhysicsStepHandler) entity;
-//            tickable.add((IPhysicsTicker) entity);
-//            entry.ticker = (IPhysicsTicker) entity;
-        }
         for(final var body : entry.bodies) {
             simulation.addRigidBody(body);
-//            if(provider.externalForceReset())
-//                addToForceReset(body);
         }
         if(entry.internalConstraints != null) {
             for (final var constraint : entry.internalConstraints) {
@@ -186,19 +191,12 @@ public class PhysicsStorage extends PersistentState {
         assert entity instanceof IPhysicsProvider : "Only IPhysicsProvider block entities can be added to PhysicsStorage";
         final var provider = (IPhysicsProvider) entity;
 
+        final var entry = createEntry(entity, provider);
+
         // Add all rigid bodies and internal constraints to the simulation
-        final var entry = new PositionData(provider, provider.bodies(), provider.internalConstraints());
-        if(entity instanceof IPhysicsStepHandler) {
-            simulation.addStepHandler((IPhysicsStepHandler) entity);
-            entry.ticker = (IPhysicsStepHandler) entity;
-//            tickable.add((IPhysicsTicker) entity);
-//            entry.ticker = (IPhysicsTicker) entity;
-        }
         int i = 0;
         for(final var body : entry.bodies) {
             simulation.addRigidBody(body, bodyIndices[i++]);
-//            if(provider.externalForceReset())
-//                addToForceReset(body);
         }
         if(entry.internalConstraints != null) {
             for (final var constraint : entry.internalConstraints) {
@@ -209,10 +207,6 @@ public class PhysicsStorage extends PersistentState {
 
         processSides(provider, entity);
     }
-//
-//    public void addToForceReset(RigidBody body) {
-//        forceResetBodies.add(body);
-//    }
 
     public Networking.ClientSyncState makeSyncPacket() {
         // Since we store bodies in a sparse list, we have to skip the null entries,
@@ -292,57 +286,9 @@ public class PhysicsStorage extends PersistentState {
 
     public static void simulateAll() {
         simulations.forEach((key, sim) -> {
-            for (IPhysicsTicker ticker : sim.tickable)
-                ticker.tick();
             sim.simulation.simulate();
-//            for (RigidBody forceResetBody : sim.forceResetBodies) {
-//                final var state = forceResetBody.getState();
-//                state.extForce.x = 0;
-//                state.extForce.y = 0;
-//                state.extForceA = 0;
-//            }
         });
     }
-
-//    public static void initializeWorker() {
-//        Fizite.LOGGER.info("Starting physics solver thread");
-//        solveStart = new Semaphore(0, true);
-//        solveFinished = new Semaphore(1, true);
-//        Thread solverThread = new Thread(() -> {
-//            Fizite.LOGGER.info("Physics solver thread started");
-//            while (solverRunning) {
-//                try {
-//                    solveStart.acquire();
-//                    simulations.forEach((key, sim) -> {
-//                        sim.simulation.simulate();
-//                        for (RigidBody forceResetBody : sim.forceResetBodies) {
-//                            final var state = forceResetBody.getState();
-//                            state.extForce.x = 0;
-//                            state.extForce.y = 0;
-//                            state.extForceA = 0;
-//                        }
-//                    });
-//                    solveFinished.release();
-//                } catch (InterruptedException e) {
-//                    Fizite.LOGGER.error(e.getMessage());
-//                } catch (Exception e) {
-//                    // Make sure we don't deadlock the main thread after an error
-//                    Fizite.LOGGER.error(e.getMessage());
-//                    solveFinished.release();
-//                }
-//            }
-//            Fizite.LOGGER.info("Physics solver thread stopped");
-//        });
-//        solverRunning = true;
-//        solverThread.setName("PhysicsSimulatorWorker");
-//        solverThread.start();
-//    }
-//
-//    public static void stopWorker() {
-//        Fizite.LOGGER.info("Stopping physics solver thread");
-//        solverRunning = false;
-//        simulations.clear();
-//    }
 
     public static void onWorldStart(MinecraftServer minecraftServer, ServerWorld serverWorld) {
         final var storage = new PhysicsStorage();
@@ -351,9 +297,14 @@ public class PhysicsStorage extends PersistentState {
         simulations.put(serverWorld.getRegistryKey(), storage);
     }
 
-//    public static void onWorldTickStart(ServerWorld serverWorld) {
-////        final var physicsStorage = get(serverWorld);
-//    }
+    public static void onWorldTickEnd(ServerWorld world) {
+        get(world).dataMap.forEach((pos, data) -> {
+            if(data.provider instanceof final BlockEntity blockEntity) {
+                // Mark all block entities as dirty
+                blockEntity.markDirty();
+            }
+        });
+    }
 
     public static void onSimulationEnd(MinecraftServer server) {
         if(++frameCounter >= 20 * 2) {
@@ -381,39 +332,6 @@ public class PhysicsStorage extends PersistentState {
     public static void clearSimulations() {
         simulations.clear();
     }
-//    public static void onServerTickStart(MinecraftServer server) {
-//        // Dispatch worker thread
-//        solveStart.release();
-//    }
-//
-//    public static void onServerTickEnd(MinecraftServer server) {
-//        // Wait for worker to finish
-//        try {
-//            solveFinished.acquire();
-//            if(++frameCounter >= 20 * 2) {
-//                frameCounter = 0;
-//                final Map<RegistryKey<World>, List<ServerPlayerEntity>> playerDimensions = new HashMap<>();
-//                for(ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-//                    final var key = player.getServerWorld().getRegistryKey();
-//                    if(playerDimensions.get(key) == null) {
-//                        final List<ServerPlayerEntity> list = new LinkedList<>();
-//                        list.add(player);
-//                        playerDimensions.put(key, list);
-//                    } else {
-//                        playerDimensions.get(key).add(player);
-//                    }
-//                }
-//                playerDimensions.forEach((key, players) -> {
-//                    final var sim = simulations.get(key);
-//                    final var packet = sim.makeSyncPacket();
-//                    Networking.CHANNEL.serverHandle(players).send(packet);
-//                });
-//                Networking.cleanupList();
-//            }
-//        } catch (InterruptedException e) {
-//            Fizite.LOGGER.error(e.getMessage());
-//        }
-//    }
 
     public static void onPlayerChangeWorld(ServerPlayerEntity player, ServerWorld oldWorld, ServerWorld newWorld) {
         final var key = newWorld.getRegistryKey();

@@ -8,6 +8,7 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.world.ClientWorld;
+import org.joml.Vector2d;
 import org.joml.Vector3d;
 
 public class ClientPhysicsStorage extends PhysicsStorage {
@@ -75,33 +76,46 @@ public class ClientPhysicsStorage extends PhysicsStorage {
         }
     }
 
-    public Vector3d lerpPos(RigidBody body, float partialTicks, boolean adjustAngle) {
+    public Vector2d lerpPos(RigidBody body, float partialTicks) {
         final var state = body.getState();
-        final var pCurrent = new Vector3d(state.position.x, state.position.y, state.positionA);
+        final var pCurrent = new Vector2d(state.position.x, state.position.y);
         if(prevPositions == null)
             return pCurrent;
         if(body.index() < 0 || body.index() >= prevPositions.length)
             return pCurrent;
 
-        final var prevPos = prevPositions[body.index()];
-        if(prevPos == null)
+        final var prevPos3d = prevPositions[body.index()];
+        if(prevPos3d == null)
             return pCurrent;
-        final var prevVel = prevVelocities[body.index()];
-
-        if(adjustAngle) {
-            if (prevVel.z > 0 && prevPos.z > pCurrent.z) {
-                pCurrent.z += Math.PI * 2;
-            } else if (prevVel.z < 0 && prevPos.z < pCurrent.z) {
-                pCurrent.z -= Math.PI * 2;
-            }
-        }
+        final var prevPos = new Vector2d(prevPos3d.x, prevPos3d.y);
 
         return pCurrent.lerp(prevPos, 1 - partialTicks);
     }
 
-    public Vector3d lerpPos(RigidBody body, float partialTicks) {
-        return lerpPos(body, partialTicks, false);
+    public double lerpAngle(RigidBody body, float partialTicks) {
+        final var state = body.getState();
+        final var pCurrent = state.positionA;
+        if(prevPositions == null)
+            return pCurrent;
+        if(body.index() < 0 || body.index() >= prevPositions.length)
+            return pCurrent;
+
+        final var prevPos3d = prevPositions[body.index()];
+        if(prevPos3d == null)
+            return pCurrent;
+        final var pPrev = prevPos3d.z;
+
+        // Do the lerping on a 2d vector
+        final var target = new Vector2d(Math.cos(pCurrent), Math.sin(pCurrent));
+        final var current = new Vector2d(Math.cos(pPrev), Math.sin(pPrev));
+        final var lerped = current.lerp(target, partialTicks);
+
+        return Math.atan2(lerped.y, lerped.x);
     }
+
+//    public Vector3d lerpPos(RigidBody body, float partialTicks) {
+//        return lerpPos(body, partialTicks, false);
+//    }
 
     public static void onBlockEntityUnload(BlockEntity entity, ClientWorld world) {
         physics.clearPosition(entity.getPos());

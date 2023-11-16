@@ -33,11 +33,12 @@ public class ConnectingRodRenderer implements BlockEntityRenderer<ConnectingRodE
         final var p0 = body.getRestPosition();
         final var a0 = body.getRestAngle();
         final var p1 = ClientPhysicsStorage.getInstance().lerpPos(body, tickDelta);
+        final var angle = ClientPhysicsStorage.getInstance().lerpAngle(body, tickDelta);
         final var x = p0.x - p1.x;
         final var y = p0.y - p1.y;
 
         final var rot = new Quaternionf();
-        rot.setAngleAxis(a0 - p1.z, 1.0f, 0.0f, 0.0f);
+        rot.setAngleAxis(a0 - angle, 1.0f, 0.0f, 0.0f);
 
         matrices.translate(0, y + 0.5, x + 0.5);
         matrices.multiply(rot);

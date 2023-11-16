@@ -12,8 +12,9 @@ public class RigidBody {
     private PhysicsWorld world;
     private int rbIndex;
 
-    private Vector2f restPosition;
+    private final Vector2f restPosition;
     private float restAngle;
+    private boolean restInitialized;
 
     private float mass;
 
@@ -21,12 +22,13 @@ public class RigidBody {
 
     public RigidBody() {
         this.state = new PhysicalState();
-        this.restPosition = null;
+        this.restPosition = new Vector2f();
         this.restAngle = 0;
         this.rbIndex = -1;
         this.world = null;
         this.mass = 1;
         this.externalForceReset = false;
+        this.restInitialized = false;
     }
 
     public void velocityWithImpulse(float dT, Vector2d velocity) {
@@ -121,11 +123,11 @@ public class RigidBody {
     }
 
     public void setRestPosition(float x, float y, float angle) {
-        if(this.restPosition == null) {
-            this.restPosition = new Vector2f();
+        if(!restInitialized) {
             state.position.x = x;
             state.position.y = y;
             state.positionA = angle;
+            restInitialized = true;
         }
         this.restPosition.set(x, y);
         this.restAngle = angle;

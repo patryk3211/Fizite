@@ -2,6 +2,8 @@ package com.patryk3211.fizite.blockentity;
 
 import com.patryk3211.fizite.block.cylinder.PneumaticCylinder;
 import com.patryk3211.fizite.simulation.physics.*;
+import com.patryk3211.fizite.simulation.physics.simulation.FrictionModel;
+import com.patryk3211.fizite.simulation.physics.simulation.IForceGenerator;
 import com.patryk3211.fizite.simulation.physics.simulation.IPhysicsStepHandler;
 import com.patryk3211.fizite.tiers.ITieredBlock;
 import com.patryk3211.fizite.tiers.Material;
@@ -16,6 +18,10 @@ import com.patryk3211.fizite.utility.IDebugOutput;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.listener.ClientPlayPacketListener;
+import net.minecraft.network.packet.Packet;
+import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -25,20 +31,26 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2f;
 import org.joml.Vector3d;
 
-public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPhysicsProvider, IDebugOutput, IPhysicsStepHandler {
+import java.util.function.Function;
+
+public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPhysicsProvider, IDebugOutput, IPhysicsStepHandler, IForceGenerator {
 //    private static final NbtKey<Float> NBT_EXTENSION = new NbtKey<>("extension", NbtKey.Type.FLOAT);
     private static final Vector2f PISTON_ANCHOR = new Vector2f(-0.5f, 0);
+
+    // TODO: Temporary values, may change later
+    private static float STATIC_FRICTION_COEFFICIENT = 0.5f;
+    private static float DYNAMIC_FRICTION_COEFFICIENT = 0.36f;
+    private static float BREAKAWAY_VELOCITY = 0.1f;
 
     private final Material material;
     private final GasCell gasStateCell;
 
     private final float pistonArea;
+    private final float tdcVolume;
     private final float strokeLength;
 
     private final RigidBody body;
     private final Constraint linearConstraint;
-//    private Constraint externalConstraint;
-    private float prevOffset;
 
     private static Material getMaterial(BlockState state) {
         final var block = state.getBlock();
@@ -63,11 +75,11 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
         strokeLength = cylinder.getStrokeLength();
 
         final float volume = cylinder.getPistonTopVolume();
+        tdcVolume = volume;
         gasStateCell = new GasCell(volume);
 
         body = new RigidBody();
         linearConstraint = new LockYConstraint(body, 0);
-        prevOffset = 0;
 
         gasStateCell.set(20000, 5, new Vector3d());
     }
@@ -86,52 +98,34 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
         }
     }
 
-    public float offset() {
-        final var p0 = body.getRestPosition().x;
-        final var p1 = body.getState().position.x;
-        return (float) (p0 - p1);
+    private float calculateVolume() {
+        final var restPos = body.getRestPosition().x;
+        final var currentPos = body.getState().position.x;
+        final var chamberLength = restPos - currentPos;
+        return (float) (tdcVolume + chamberLength * pistonArea);
+    }
+
+    private static double calculateFriction(double deltaTime, double velocity) {
+        return -FrictionModel.DEFAULT.calculate(velocity, 0) * Math.signum(velocity);
     }
 
     @Override
-    public void onStep(double deltaTime) {
-        final var newOffset = offset();
-        final var delta = newOffset - prevOffset;
-        final var work = gasStateCell.changeVolume(pistonArea, delta);
-        prevOffset = newOffset;
+    public void onStepEnd(double deltaTime) {
+        gasStateCell.changeVolumeTo(calculateVolume());
+    }
 
-        final double internalPressure = gasStateCell.pressure();
+    @Override
+    public void apply(double deltaTime) {
+        double internalPressure = gasStateCell.pressure();
         final double pressureDifference = internalPressure - GasSimulator.ATMOSPHERIC_PRESSURE;
 
         // Pa = N / m²
-        final double force = (pressureDifference * pistonArea * 0.95); // - (delta == 0 ? 0 : work / delta);
-        body.getState().extForce.x = -force;
+        final double force = pressureDifference * pistonArea;
+        final double frictionForce = calculateFriction(deltaTime, body.getState().velocity.x);
+        if(Double.isNaN(force) || Double.isInfinite(force))
+            return;
+        body.getState().extForce.x = -force + frictionForce;
     }
-
-//    @Override
-//    public void tick() {
-        // TODO: Fix this tomorrow
-//        final var newOffset = offset();
-//        final var delta = newOffset - prevOffset;
-//        final var work = gasStateCell.changeVolume(pistonArea, delta);
-//        prevOffset = newOffset;
-//
-//        final double internalPressure = gasStateCell.pressure();
-//        final double pressureDifference = internalPressure - GasSimulator.ATMOSPHERIC_PRESSURE;
-//
-//        // Pa = N / m²
-//        final double force = (pressureDifference * pistonArea) - (delta == 0 ? 0 : work / delta);
-//        body.getState().extForce.x = -force;
-//    }
-
-//    public static void serverTick(World world, BlockPos position, BlockState state, CylinderEntity tile) {
-//        final double internalPressure = tile.gasStateCell.pressure();
-//        final double pressureDifference = internalPressure - GasSimulator.ATMOSPHERIC_PRESSURE;
-//
-//        // Pa = Nm²
-//        final double force = pressureDifference / tile.pistonArea;
-////        final var body = tile.physicsData.getBody(0);
-////        body.applyForce(new Vector2(-force, 0));
-//    }
 
     @Override
     public void readNbt(NbtCompound nbt) {
@@ -145,6 +139,17 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
         super.writeNbt(nbt);
         nbt.put(GasCell.NBT_KEY, gasStateCell.serialize());
 //        nbt.put(NBT_EXTENSION, extension);
+    }
+
+    @Nullable
+    @Override
+    public Packet<ClientPlayPacketListener> toUpdatePacket() {
+        return BlockEntityUpdateS2CPacket.create(this);
+    }
+
+    @Override
+    public NbtCompound toInitialChunkDataNbt() {
+        return createNbt();
     }
 
     @Override

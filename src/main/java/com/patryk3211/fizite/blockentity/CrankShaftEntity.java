@@ -29,6 +29,7 @@ public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider, I
         super(AllBlockEntities.CRANK_SHAFT_ENTITY, pos, state);
 
         body = new RigidBody();
+        body.setMass(5);
         positionConstraint = new PositionConstraint(body, 0, 0);
     }
 
@@ -63,6 +64,7 @@ public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider, I
         return switch(getConnectionType(dir)) {
             case XY -> xyAnchor;
             case ROTATIONAL -> rotationAnchor;
+            case NONE -> null;
             default -> throw new IllegalStateException("Unknown connection type");
         };
     }

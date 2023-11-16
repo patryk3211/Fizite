@@ -13,7 +13,7 @@ import java.util.*;
 public class PhysicsWorld {
     // Default parameters
     public static final double DELTA_TIME = Simulator.TICK_RATE; //1.0f / 20.0f;
-    public static final int STEPS = 100;
+    public static final int STEPS = 150;
 
     private final int steps;
     private final double stepTime;
@@ -30,6 +30,7 @@ public class PhysicsWorld {
     private int bodyCount;
 
     private final List<IPhysicsStepHandler> stepHandlers;
+    private final List<IForceGenerator> forceGenerators;
 
     // Profiling info
     public long startTime;
@@ -51,6 +52,7 @@ public class PhysicsWorld {
         freeIndices = new LinkedList<>();
         constraints = new LinkedList<>();
         stepHandlers = new LinkedList<>();
+        forceGenerators = new LinkedList<>();
 
         constraintSolver = new ConstraintSolver(rigidBodies, constraints);
         totalConstraintCount = 0;
@@ -139,6 +141,14 @@ public class PhysicsWorld {
         stepHandlers.remove(handler);
     }
 
+    public void addForceGenerator(IForceGenerator generator) {
+        forceGenerators.add(generator);
+    }
+
+    public void removeForceGenerator(IForceGenerator generator) {
+        forceGenerators.remove(generator);
+    }
+
     public void simulate() {
         if(bodyCount == 0)
             return;
@@ -154,29 +164,39 @@ public class PhysicsWorld {
         physicsSolver.start(stepTime, system);
         startTime += System.nanoTime();
 
-        for(int i = 0; i < steps * 4; ++i) {
-            for (IPhysicsStepHandler handler : stepHandlers)
-                handler.onStep(stepTime / 4);
+        for(int i = 0; i < steps; ++i) {
+            do {
+                // Physics part I
+                physicsStepTime = -System.nanoTime();
+                physicsSolver.step();
+                physicsStepTime += System.nanoTime();
 
-            // Physics part I
-            physicsStepTime = -System.nanoTime();
-            physicsSolver.step();
-            physicsStepTime += System.nanoTime();
+                forceGenerators.forEach(g -> g.apply(stepTime));
+//            if(i % 4 == 0) {
+//                for (IPhysicsStepHandler handler : stepHandlers)
+//                    handler.onStep(stepTime);
+//            }
 
-            // Calculate constraint forces
-            constraintSolveTime = -System.nanoTime();
-            if(totalConstraintCount != 0)
-                constraintSolver.step();
-            constraintSolveTime += System.nanoTime();
+                // Calculate constraint forces
+                constraintSolveTime = -System.nanoTime();
+                if (totalConstraintCount != 0)
+                    constraintSolver.step();
+                constraintSolveTime += System.nanoTime();
 
-            // Physics part II
-            physicsSolveTime = -System.nanoTime();
-            physicsSolver.solve();
-            physicsSolveTime += System.nanoTime();
+                // Physics part II
+                physicsSolveTime = -System.nanoTime();
+                physicsSolver.solve();
+                physicsSolveTime += System.nanoTime();
+            } while(!physicsSolver.stepFinished());
+
+            // Post-step
+            stepHandlers.forEach(h -> h.onStepEnd(stepTime));
         }
         totalTime += System.nanoTime();
 
         for(final var body : rigidBodies) {
+            if(body == null)
+                continue;
             if(body.externalForceReset) {
                 final var state = body.getState();
                 state.extForce.x = 0;
@@ -243,6 +263,7 @@ public class PhysicsWorld {
         writer.write(state.position.x + "," + state.position.y + "," + state.positionA + "\t");
         writer.write(state.velocity.x + "," + state.velocity.y + "," + state.velocityA + "\n");
         dumpVector(writer, body.index() + 100, state.position, state.extForce);
+        dumpVector(writer, body.index() + 200, state.position, state.cForce);
     }
 
     private static void dumpVector(OutputStreamWriter writer, int index, Vector2d origin, Vector2d direction) throws IOException {

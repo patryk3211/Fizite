@@ -271,6 +271,10 @@ public class ConstraintSolver {
             bodyState.acceleration.x = (float) ((fX + bodyState.extForce.x) / body.getMass());
             bodyState.acceleration.y = (float) ((fY + bodyState.extForce.y) / body.getMass());
             bodyState.accelerationA = (float) ((fA + bodyState.extForceA) / body.getMass());
+
+            bodyState.cForce.x = fX;
+            bodyState.cForce.y = fY;
+            bodyState.cForceA = fA;
         }
     }
 

@@ -40,6 +40,8 @@ public class PhysicsSolver {
     }
 
     public void step() {
+        if(currentStage >= 4)
+            currentStage = 0;
         final var systemStates = system.getStates();
         switch(currentStage) {
             case 0:
@@ -119,8 +121,10 @@ public class PhysicsSolver {
                 sState.velocity.set(iState.velocity);
                 sState.position.set(iState.position);
             }
-
-            currentStage = 0;
         }
+    }
+
+    public boolean stepFinished() {
+        return currentStage >= 4;
     }
 }

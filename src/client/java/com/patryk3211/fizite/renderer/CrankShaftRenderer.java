@@ -23,7 +23,7 @@ public class CrankShaftRenderer implements BlockEntityRenderer<CrankShaftEntity>
         final var state = entity.getCachedState().with(CrankShaft.MODEL_PART_PROPERTY, CrankShaft.ModelPart.DYNAMIC);
         final var body = entity.bodies()[0];
 
-        final var angle = ClientPhysicsStorage.getInstance().lerpPos(body, tickDelta, true).z;
+        final var angle = ClientPhysicsStorage.getInstance().lerpAngle(body, tickDelta);
 
         matrices.push();
         final var rotation = new Quaternionf();

@@ -30,7 +30,7 @@ public class HandCrankRenderer implements BlockEntityRenderer<HandCrankEntity> {
         final var normal = state.get(Properties.FACING).getUnitVector();
 
         matrices.push();
-        final var angle = ClientPhysicsStorage.getInstance().lerpPos(body, tickDelta, true).z;
+        final var angle = ClientPhysicsStorage.getInstance().lerpAngle(body, tickDelta);
 
         final var rot = new Quaternionf();
         rot.setAngleAxis(angle, normal.x, normal.y, normal.z);

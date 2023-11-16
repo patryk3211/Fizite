@@ -47,6 +47,7 @@ public class Fizite implements ModInitializer {
 
 		ServerTickEvents.START_SERVER_TICK.register(Simulator::onServerTickStart);
 		ServerTickEvents.END_SERVER_TICK.register(Simulator::onServerTickEnd);
+		ServerTickEvents.END_WORLD_TICK.register(PhysicsStorage::onWorldTickEnd);
 
 		ServerLifecycleEvents.SERVER_STARTING.register(server -> Simulator.initializeWorker());
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> Simulator.stopWorker());

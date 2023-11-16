@@ -47,11 +47,11 @@ public class HandCrank extends ModdedBlock implements BlockEntityProvider {
         double applyForce = 0;
         if(player.isSneaking()) {
             if(physState.velocityA > -6) {
-                applyForce = -10;
+                applyForce = -150;
             }
         } else {
             if(physState.velocityA < 6) {
-                applyForce = 10;
+                applyForce = 150;
             }
         }
         if(applyForce != 0) {
