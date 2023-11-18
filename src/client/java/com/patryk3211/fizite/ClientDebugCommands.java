@@ -4,10 +4,8 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.patryk3211.fizite.simulation.ClientPhysicsStorage;
-import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.command.CommandRegistryAccess;
-import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.*;
@@ -31,8 +29,8 @@ public class ClientDebugCommands {
     }
 
     private static int fizite_client_times(CommandContext<FabricClientCommandSource> context) {
-        final var report = ClientPhysicsStorage.getInstance().timingReport();
-        context.getSource().sendFeedback(Text.literal(report));
+        final var report = ClientPhysicsStorage.get().timingReport();
+        context.getSource().sendFeedback(report);
         return 1;
     }
 }

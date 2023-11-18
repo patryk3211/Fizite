@@ -1,7 +1,7 @@
 package com.patryk3211.fizite.blockentity;
 
 import com.patryk3211.fizite.simulation.physics.IPhysicsProvider;
-import com.patryk3211.fizite.simulation.physics.Networking;
+import com.patryk3211.fizite.simulation.Networking;
 import com.patryk3211.fizite.simulation.physics.PhysicalConnection;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
@@ -10,7 +10,6 @@ import com.patryk3211.fizite.simulation.physics.simulation.constraints.PositionC
 import com.patryk3211.fizite.utility.IDebugOutput;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
@@ -33,25 +32,11 @@ public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider, I
         positionConstraint = new PositionConstraint(body, 0, 0);
     }
 
-//    public static void serverTick(World world, BlockPos pos, BlockState state, CrankShaftEntity entity) {
-//        // Apply a force until 2 rad/s
-//        final var physState = entity.body.getState();
-//        if(physState.velocityA < 2) {
-//            physState.extForceA = 10;
-//        } else {
-//            physState.extForceA = 0;
-//        }
-//    }
-
     @Override
     public void setWorld(World world) {
         super.setWorld(world);
 
-        if(!world.isClient) {
-            PhysicsStorage.get(world).addBlockEntity(this);
-        } else {
-            Networking.sendBlockEntityRequest(pos, world.getRegistryKey());
-        }
+        PhysicsStorage.get(world).addBlockEntity(this);
     }
 
     @Override
@@ -92,8 +77,8 @@ public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider, I
     public String[] debugInfo() {
         final var state = body.getState();
         return new String[] {
-                "Angle = " + state.positionA,
-                "Angular Velocity = " + state.velocityA
+                String.format("Angle = %.3f", state.positionA),
+                String.format("Angular Velocity = %.3f", state.velocityA)
         };
     }
 }

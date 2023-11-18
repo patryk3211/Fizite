@@ -8,14 +8,17 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.PersistentState;
+import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.util.*;
 
-public class GasWorldBoundaries extends PersistentState {
+public class GasStorage extends PersistentState {
     public static final String STORAGE_ID = Fizite.MOD_ID + ":gas_boundary_storage";
-    public static final Type<GasWorldBoundaries> TYPE = new Type<>(GasWorldBoundaries::new, (nbt) -> new GasWorldBoundaries(), null);
+    public static final Type<GasStorage> TYPE = new Type<>(GasStorage::new, (nbt) -> new GasStorage(), null);
+
+    protected static GasStorage clientStorage = null;
 
     public static class PositionData {
         public final GasBoundary[] directions;
@@ -25,16 +28,12 @@ public class GasWorldBoundaries extends PersistentState {
             this.provider = provider;
             directions = new GasBoundary[3];
         }
-
-        public boolean isEmpty() {
-            return directions[0] == null && directions[1] == null && directions[2] == null;
-        }
     }
 
-    private final Map<BlockPos, PositionData> boundaries;
-    private final List<GasBoundary> collectedBoundaries;
+    protected final Map<BlockPos, PositionData> boundaries;
+    protected final List<GasBoundary> collectedBoundaries;
 
-    public GasWorldBoundaries() {
+    public GasStorage() {
         boundaries = new HashMap<>();
         collectedBoundaries = new LinkedList<>();
     }
@@ -46,20 +45,20 @@ public class GasWorldBoundaries extends PersistentState {
         PositionData entry = new PositionData(baseProvider);
         boundaries.put(entity.getPos(), entry);
 
-        for(final var dir : Direction.values()) {
+        for (final var dir : Direction.values()) {
             if (baseProvider.getCell(dir) == null) {
                 // This side doesn't provide a gas cell
                 continue;
             }
 
             final var entryAt = boundaries.get(entity.getPos().offset(dir));
-            if(entryAt == null)
+            if (entryAt == null)
                 // This position doesn't have a gas cell provider
                 continue;
             final var neighbor = entryAt.provider;
             final var oDir = dir.getOpposite();
             final var neighborCell = neighbor.getCell(oDir);
-            if(neighborCell == null)
+            if (neighborCell == null)
                 // This side doesn't have a gas cell
                 continue;
 
@@ -76,14 +75,18 @@ public class GasWorldBoundaries extends PersistentState {
     }
 
     @NotNull
-    public static GasWorldBoundaries getBoundaries(@NotNull ServerWorld world) {
-        final GasWorldBoundaries boundaries = world.getPersistentStateManager().get(TYPE, STORAGE_ID);
-        assert boundaries != null : "World gas boundary storage class was not initialized for this world";
-        return boundaries;
+    public static GasStorage get(@NotNull World world) {
+        if(world.isClient) {
+            return clientStorage;
+        } else {
+            final GasStorage boundaries = ((ServerWorld) world).getPersistentStateManager().get(TYPE, STORAGE_ID);
+            assert boundaries != null : "World gas boundary storage class was not initialized for this world";
+            return boundaries;
+        }
     }
 
     public void addBoundary(BlockPos pos, @NotNull Direction dir, @NotNull GasBoundary boundary) {
-        if(dir.getDirection() == Direction.AxisDirection.NEGATIVE) {
+        if (dir.getDirection() == Direction.AxisDirection.NEGATIVE) {
             // Add the negative offset to get the actual position of the boundary
             pos = pos.add(dir.getVector());
             // Get the opposite (positive) direction
@@ -92,12 +95,10 @@ public class GasWorldBoundaries extends PersistentState {
         final int index = DirectionUtilities.positiveDirectionIndex(dir);
 
         var boundariesAt = boundaries.get(pos);
-        if(boundariesAt == null) {
+        if (boundariesAt == null) {
             throw new IllegalStateException("Given direction doesn't have a gas provider");
-//            boundariesAt = new PositionData();
-//            boundaries.put(pos, boundariesAt);
         }
-        if(boundariesAt.directions[index] != null) {
+        if (boundariesAt.directions[index] != null) {
             Fizite.LOGGER.warn("Overriding GasBoundary at {}, direction {}", pos, dir);
             collectedBoundaries.remove(boundariesAt.directions[index]);
         }
@@ -106,7 +107,7 @@ public class GasWorldBoundaries extends PersistentState {
     }
 
     public GasBoundary getBoundary(BlockPos pos, @NotNull Direction dir) {
-        if(dir.getDirection() == Direction.AxisDirection.NEGATIVE) {
+        if (dir.getDirection() == Direction.AxisDirection.NEGATIVE) {
             // Add the negative offset to get the actual position of the boundary
             pos = pos.add(dir.getVector());
             // Get the opposite (positive) direction
@@ -114,7 +115,7 @@ public class GasWorldBoundaries extends PersistentState {
         }
 
         final var boundariesAt = boundaries.get(pos);
-        if(boundariesAt == null)
+        if (boundariesAt == null)
             return null;
 
         int index = DirectionUtilities.positiveDirectionIndex(dir);
@@ -122,7 +123,7 @@ public class GasWorldBoundaries extends PersistentState {
     }
 
     public void removeBoundary(BlockPos pos, @NotNull Direction dir) {
-        if(dir.getDirection() == Direction.AxisDirection.NEGATIVE) {
+        if (dir.getDirection() == Direction.AxisDirection.NEGATIVE) {
             // Add the negative offset to get the actual position of the boundary
             pos = pos.add(dir.getVector());
             // Get the opposite (positive) direction
@@ -130,18 +131,16 @@ public class GasWorldBoundaries extends PersistentState {
         }
 
         final var boundariesAt = boundaries.get(pos);
-        if(boundariesAt == null)
+        if (boundariesAt == null)
             return;
 
         final int index = DirectionUtilities.positiveDirectionIndex(dir);
         collectedBoundaries.remove(boundariesAt.directions[index]);
         boundariesAt.directions[index] = null;
-//        if(boundariesAt.isEmpty())
-//            boundaries.remove(pos);
     }
 
     public void removeBoundaries(BlockPos pos) {
-        for(final var dir : Direction.values()) {
+        for (final var dir : Direction.values()) {
             removeBoundary(pos, dir);
         }
         boundaries.remove(pos);
@@ -149,6 +148,12 @@ public class GasWorldBoundaries extends PersistentState {
 
     public Collection<GasBoundary> getAllBoundaries() {
         return collectedBoundaries;
+    }
+
+    public void simulate(double deltaTime) {
+        for(GasBoundary boundary : collectedBoundaries) {
+            boundary.simulate(deltaTime);
+        }
     }
 
     @Override

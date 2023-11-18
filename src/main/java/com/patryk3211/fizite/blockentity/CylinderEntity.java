@@ -1,6 +1,7 @@
 package com.patryk3211.fizite.blockentity;
 
 import com.patryk3211.fizite.block.cylinder.PneumaticCylinder;
+import com.patryk3211.fizite.simulation.Networking;
 import com.patryk3211.fizite.simulation.physics.*;
 import com.patryk3211.fizite.simulation.physics.simulation.FrictionModel;
 import com.patryk3211.fizite.simulation.physics.simulation.IForceGenerator;
@@ -9,7 +10,7 @@ import com.patryk3211.fizite.tiers.ITieredBlock;
 import com.patryk3211.fizite.tiers.Material;
 import com.patryk3211.fizite.simulation.gas.GasCell;
 import com.patryk3211.fizite.simulation.gas.GasSimulator;
-import com.patryk3211.fizite.simulation.gas.GasWorldBoundaries;
+import com.patryk3211.fizite.simulation.gas.GasStorage;
 import com.patryk3211.fizite.simulation.gas.IGasCellProvider;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.Constraint;
@@ -18,11 +19,9 @@ import com.patryk3211.fizite.utility.IDebugOutput;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
@@ -31,8 +30,6 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2f;
 import org.joml.Vector3d;
 
-import java.util.function.Function;
-
 public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPhysicsProvider, IDebugOutput, IPhysicsStepHandler, IForceGenerator {
 //    private static final NbtKey<Float> NBT_EXTENSION = new NbtKey<>("extension", NbtKey.Type.FLOAT);
     private static final Vector2f PISTON_ANCHOR = new Vector2f(-0.5f, 0);
@@ -40,7 +37,6 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
     // TODO: Temporary values, may change later
     private static float STATIC_FRICTION_COEFFICIENT = 0.5f;
     private static float DYNAMIC_FRICTION_COEFFICIENT = 0.36f;
-    private static float BREAKAWAY_VELOCITY = 0.1f;
 
     private final Material material;
     private final GasCell gasStateCell;
@@ -87,15 +83,15 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
     @Override
     public void setWorld(World world) {
         super.setWorld(world);
+        GasStorage.get(world).addBlockEntity(this);
 
-        if(!world.isClient) {
-            // Connect to the neighbor
-            // TODO: Use facing property instead of NORTH
-            GasWorldBoundaries.getBoundaries((ServerWorld) world).addBlockEntity(this);
-            PhysicsStorage.get(world).addBlockEntity(this);
-        } else {
-            Networking.sendBlockEntityRequest(pos, world.getRegistryKey());
-        }
+        PhysicsStorage.get(world).addBlockEntity(this);
+//        if(!world.isClient) {
+//            // Connect to the neighbor
+//            PhysicsStorage.get(world).addBlockEntity(this);
+//        } else {
+//            Networking.sendBlockEntityRequest(pos, world.getRegistryKey());
+//        }
     }
 
     private float calculateVolume() {
@@ -159,6 +155,11 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
     }
 
     @Override
+    public GasCell getCell(int i) {
+        return gasStateCell;
+    }
+
+    @Override
     public double getCrossSection(@NotNull Direction dir) {
         return 1;
     }
@@ -207,11 +208,11 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
         final var rbPos = body.getState().position;
         final var rbVel = body.getState().velocity;
         return new String[] {
-                "Origin = (" + rbOrigin.x + ", " + rbOrigin.y + ")",
-                "Position = (" + rbPos.x + ", " + rbPos.y + ")",
-                "Velocity = (" + rbVel.x + ", " + rbVel.y + ")",
-                "Pressure = " + gasStateCell.pressure() + "Pa",
-                "Temperature = " + gasStateCell.temperature() + "K"
+                String.format("Origin = (%.3e, %.3e)", rbOrigin.x, rbOrigin.y),
+                String.format("Position = (%.3e, %.3e)", rbPos.x, rbPos.y),
+                String.format("Velocity = (%.3e, %.3e)", rbVel.x, rbVel.y),
+                String.format("Pressure = %.1f Pa", gasStateCell.pressure()),
+                String.format("Temperature = %.2f K", gasStateCell.temperature())
         };
     }
 }

@@ -2,7 +2,7 @@ package com.patryk3211.fizite.block.pipe;
 
 import com.patryk3211.fizite.block.ModdedBlock;
 import com.patryk3211.fizite.blockentity.PipeEntity;
-import com.patryk3211.fizite.simulation.gas.GasWorldBoundaries;
+import com.patryk3211.fizite.simulation.gas.GasStorage;
 import com.patryk3211.fizite.simulation.gas.IGasCellProvider;
 import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
 import net.minecraft.block.Block;
@@ -95,7 +95,7 @@ public abstract class PipeBase extends ModdedBlock implements BlockEntityProvide
     @Override
     protected void onBlockRemoved(BlockState state, World world, BlockPos pos) {
         if(world instanceof final ServerWorld serverWorld) {
-            final GasWorldBoundaries boundaries = GasWorldBoundaries.getBoundaries(serverWorld);
+            final GasStorage boundaries = GasStorage.get(serverWorld);
             boundaries.removeBoundaries(pos);
         }
     }

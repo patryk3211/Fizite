@@ -1,7 +1,6 @@
 package com.patryk3211.fizite.renderer;
 
 import com.patryk3211.fizite.block.CrankShaft;
-import com.patryk3211.fizite.block.cylinder.PneumaticCylinder;
 import com.patryk3211.fizite.blockentity.CrankShaftEntity;
 import com.patryk3211.fizite.simulation.ClientPhysicsStorage;
 import net.minecraft.client.render.VertexConsumerProvider;
@@ -23,7 +22,7 @@ public class CrankShaftRenderer implements BlockEntityRenderer<CrankShaftEntity>
         final var state = entity.getCachedState().with(CrankShaft.MODEL_PART_PROPERTY, CrankShaft.ModelPart.DYNAMIC);
         final var body = entity.bodies()[0];
 
-        final var angle = ClientPhysicsStorage.getInstance().lerpAngle(body, tickDelta);
+        final var angle = ClientPhysicsStorage.get().lerpAngle(body, tickDelta);
 
         matrices.push();
         final var rotation = new Quaternionf();

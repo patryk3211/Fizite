@@ -1,6 +1,7 @@
 package com.patryk3211.fizite.simulation;
 
 import com.patryk3211.fizite.Fizite;
+import com.patryk3211.fizite.simulation.physics.IPhysicsProvider;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.simulation.PhysicsWorld;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
@@ -12,28 +13,23 @@ import org.joml.Vector2d;
 import org.joml.Vector3d;
 
 public class ClientPhysicsStorage extends PhysicsStorage {
-    private static final ClientPhysicsStorage physics = new ClientPhysicsStorage();
-
-    public static ClientPhysicsStorage getInstance() {
-        return physics;
-    }
+    private static ClientPhysicsStorage physics;
 
     private Vector3d[] prevPositions;
     private Vector3d[] prevVelocities;
 
     public ClientPhysicsStorage() {
         clientStorage = this;
+        physics = this;
+    }
+
+    public static ClientPhysicsStorage get() {
+        return physics;
     }
 
     public static void onWorldTickStart(ClientWorld world) {
         physics.copyPositions();
         physics.simulation.simulate();
-//        for (RigidBody body : physics.forceResetBodies) {
-//            final var state = body.getState();
-//            state.extForce.x = 0;
-//            state.extForce.y = 0;
-//            state.extForceA = 0;
-//        }
     }
 
     public static void onDisconnect(ClientPlayNetworkHandler networkHandler, MinecraftClient client) {
@@ -49,6 +45,34 @@ public class ClientPhysicsStorage extends PhysicsStorage {
     public PhysicsWorld simulation() {
         return simulation;
     }
+
+    @Override
+    public void addBlockEntity(BlockEntity entity) {
+        assert entity.getWorld() != null;
+        ClientNetworking.sendBlockEntityRequest(entity.getPos(), entity.getWorld().getRegistryKey());
+    }
+
+    public void addBlockEntity(BlockEntity entity, int[] bodyIndices) {
+        assert entity instanceof IPhysicsProvider : "Only IPhysicsProvider block entities can be added to PhysicsStorage";
+        final var provider = (IPhysicsProvider) entity;
+
+        final var entry = createEntry(entity, provider);
+
+        // Add all rigid bodies and internal constraints to the simulation
+        int i = 0;
+        for(final var body : entry.bodies) {
+            simulation.addRigidBody(body, bodyIndices[i++]);
+        }
+        if(entry.internalConstraints != null) {
+            for (final var constraint : entry.internalConstraints) {
+                simulation.addConstraint(constraint);
+            }
+        }
+        dataMap.put(entity.getPos(), entry);
+
+        processSides(provider, entity);
+    }
+
 
     private void copyPositions() {
         final var system = physics.simulation.system();
@@ -112,10 +136,6 @@ public class ClientPhysicsStorage extends PhysicsStorage {
 
         return Math.atan2(lerped.y, lerped.x);
     }
-
-//    public Vector3d lerpPos(RigidBody body, float partialTicks) {
-//        return lerpPos(body, partialTicks, false);
-//    }
 
     public static void onBlockEntityUnload(BlockEntity entity, ClientWorld world) {
         physics.clearPosition(entity.getPos());

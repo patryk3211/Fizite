@@ -2,22 +2,33 @@ package com.patryk3211.fizite.simulation;
 
 import com.patryk3211.fizite.Fizite;
 import com.patryk3211.fizite.simulation.gas.GasSimulator;
+import com.patryk3211.fizite.simulation.gas.GasStorage;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
+import com.patryk3211.fizite.simulation.physics.simulation.IPhysicsStepHandler;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.world.ServerWorld;
 
 import java.util.concurrent.Semaphore;
 
 public class Simulator {
+    public record GasStepHandler(GasStorage boundaries) implements IPhysicsStepHandler {
+        @Override
+        public void onStepEnd(double deltaTime) {
+            boundaries.simulate(deltaTime);
+        }
+    }
+
     public static final float TICK_RATE = 1.0f / 20.0f;
 
     private static boolean solverRunning;
     private static Semaphore solveStart;
     private static Semaphore solveFinished;
+    private static int tickCount = 0;
 
     public static void initializeWorker() {
         Fizite.LOGGER.info("Starting simulation thread");
         solveStart = new Semaphore(0, true);
-        solveFinished = new Semaphore(1, true);
+        solveFinished = new Semaphore(0, true);
         Thread solverThread = new Thread(() -> {
             Fizite.LOGGER.info("Simulation thread started");
             while (solverRunning) {
@@ -26,8 +37,6 @@ public class Simulator {
                     solveStart.acquire();
                     // Simulate physics
                     PhysicsStorage.simulateAll();
-                    // Simulate gas flow
-                    GasSimulator.simulateAll();
                     // Signal end of simulation tick
                     solveFinished.release();
                 } catch (InterruptedException e) {
@@ -50,7 +59,15 @@ public class Simulator {
         solverRunning = false;
         PhysicsStorage.clearSimulations();
         GasSimulator.clearSimulations();
+        tickCount = 0;
     }
+
+    public static void onWorldStart(MinecraftServer server, ServerWorld world) {
+        final var physics = PhysicsStorage.addToWorld(world);
+        final var gas = GasSimulator.addToWorld(world);
+        physics.addStepHandler(new GasStepHandler(gas));
+    }
+
     public static void onServerTickStart(MinecraftServer server) {
         // Dispatch worker thread
         solveStart.release();
@@ -60,7 +77,11 @@ public class Simulator {
         // Wait for worker to finish
         try {
             solveFinished.acquire();
-            PhysicsStorage.onSimulationEnd(server);
+            if(tickCount++ >= 20 * 2) {
+                tickCount = 0;
+                PhysicsStorage.syncStates(server);
+                GasSimulator.syncStates();
+            }
         } catch (InterruptedException e) {
             Fizite.LOGGER.error(e.getMessage());
         }

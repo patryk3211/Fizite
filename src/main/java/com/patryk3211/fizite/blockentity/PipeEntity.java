@@ -1,9 +1,8 @@
 package com.patryk3211.fizite.blockentity;
 
 import com.patryk3211.fizite.block.pipe.PipeBase;
-import com.patryk3211.fizite.simulation.gas.GasBoundary;
 import com.patryk3211.fizite.simulation.gas.GasCell;
-import com.patryk3211.fizite.simulation.gas.GasWorldBoundaries;
+import com.patryk3211.fizite.simulation.gas.GasStorage;
 import com.patryk3211.fizite.simulation.gas.IGasCellProvider;
 import io.wispforest.owo.nbt.NbtKey;
 import net.minecraft.block.BlockState;
@@ -14,8 +13,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.joml.Vector3d;
 
 public class PipeEntity extends BlockEntity implements IGasCellProvider {
     private static final NbtKey<Integer> NBT_MASK = new NbtKey<>("mask", NbtKey.Type.INT);
@@ -38,9 +35,9 @@ public class PipeEntity extends BlockEntity implements IGasCellProvider {
     @Override
     public void setWorld(World world) {
         super.setWorld(world);
+        GasStorage.get(world).addBlockEntity(this);
 
         if(!world.isClient) {
-            GasWorldBoundaries.getBoundaries((ServerWorld) world).addBlockEntity(this);
             prevSideMask = sideMask;
         }
     }
@@ -61,7 +58,7 @@ public class PipeEntity extends BlockEntity implements IGasCellProvider {
                     IGasCellProvider.connect(blockEntity, dir);
                 } else {
                     // New side mask disables this side from connections
-                    final var boundaries = GasWorldBoundaries.getBoundaries(world);
+                    final var boundaries = GasStorage.get(world);
                     boundaries.removeBoundary(pos, dir);
                 }
             }
@@ -94,6 +91,11 @@ public class PipeEntity extends BlockEntity implements IGasCellProvider {
     public GasCell getCell(@NotNull Direction dir) {
         if((sideMask & (1 << dir.getId())) != 0)
             return null;
+        return gasStateCell;
+    }
+
+    @Override
+    public GasCell getCell(int i) {
         return gasStateCell;
     }
 

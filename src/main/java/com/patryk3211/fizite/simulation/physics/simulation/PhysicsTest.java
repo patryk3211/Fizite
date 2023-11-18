@@ -83,14 +83,14 @@ public class PhysicsTest {
             dumpBody(body2);
 //            dumpBody(body3);
             if(consoleOut) {
-                System.out.println("Solve times:");
-                System.out.println("    cSolve = " + (world.constraintSolveTime / 1000.0) + "us");
-                System.out.println("    pStep = " + (world.physicsStepTime / 1000.0) + "us");
-                System.out.println("    pSolve = " + (world.physicsSolveTime / 1000.0) + "us");
-                System.out.println("    total = " + ((world.constraintSolveTime + world.physicsStepTime + world.physicsSolveTime) / 1000.0) + "us");
-                System.out.println("    simTime = " + (simTime / 1000.0) + "us");
-
-                System.out.println("System energy = " + world.totalKineticEnergy());
+//                System.out.println("Solve times:");
+//                System.out.println("    cSolve = " + (world.constraintSolveTime / 1000.0) + "us");
+//                System.out.println("    pStep = " + (world.physicsStepTime / 1000.0) + "us");
+//                System.out.println("    pSolve = " + (world.physicsSolveTime / 1000.0) + "us");
+//                System.out.println("    total = " + ((world.constraintSolveTime + world.physicsStepTime + world.physicsSolveTime) / 1000.0) + "us");
+//                System.out.println("    simTime = " + (simTime / 1000.0) + "us");
+//
+//                System.out.println("System energy = " + world.totalKineticEnergy());
             }
 
             try {

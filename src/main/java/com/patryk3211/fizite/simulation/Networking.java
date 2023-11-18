@@ -1,6 +1,10 @@
-package com.patryk3211.fizite.simulation.physics;
+package com.patryk3211.fizite.simulation;
 
 import com.patryk3211.fizite.Fizite;
+import com.patryk3211.fizite.simulation.gas.GasSimulator;
+import com.patryk3211.fizite.simulation.gas.IGasCellProvider;
+import com.patryk3211.fizite.simulation.physics.IPhysicsProvider;
+import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import io.wispforest.owo.network.OwoNetChannel;
 import io.wispforest.owo.network.ServerAccess;
 import io.wispforest.owo.network.serialization.PacketBufSerializer;
@@ -19,11 +23,15 @@ import java.util.*;
 public class Networking {
     public static OwoNetChannel CHANNEL;
 
+    public record GasState(BlockPos position, int cellIndex, double Ek, double n, double V_x, double V_y, double V_z) { }
+
     public record ClientAddBlockEntity(BlockPos entityPosition, int[] rigidBodyIndices) { }
     public record ClientSyncState(int[] bodyIndices, Vec2f[] positions, Vec2f[] velocities, float[] angles, float[] angularVelocities) { }
     public record ClientGetSimulation(BlockPos[] entities, int[][] rigidBodyIndices) { }
-//    public record ClientRemoveRigidBodies(BlockPos entityPosition) { }
+    public record ClientSyncGasState(GasState[] states) { }
     public record ServerRequestBlockEntity(BlockPos entityPosition, Identifier world) { }
+    public record ServerAddGasSyncPosition(BlockPos position, Identifier world) { }
+    public record ServerRemoveGasSyncPosition(BlockPos position) { }
 
     private static class WaitListEntry {
         public final Set<ServerPlayerEntity> players;
@@ -48,17 +56,58 @@ public class Networking {
             float y = packetByteBuf.readFloat();
             return new Vec2f(x, y);
         });
+        PacketBufSerializer.register(GasState.class, (packetByteBuf, gasState) -> {
+            packetByteBuf.writeBlockPos(gasState.position);
+            packetByteBuf.writeInt(gasState.cellIndex);
+            packetByteBuf.writeDouble(gasState.Ek);
+            packetByteBuf.writeDouble(gasState.n);
+            packetByteBuf.writeDouble(gasState.V_x);
+            packetByteBuf.writeDouble(gasState.V_y);
+            packetByteBuf.writeDouble(gasState.V_z);
+        }, packetByteBuf -> {
+            BlockPos pos = packetByteBuf.readBlockPos();
+            int index = packetByteBuf.readInt();
+            double Ek = packetByteBuf.readDouble();
+            double n = packetByteBuf.readDouble();
+            double V_x = packetByteBuf.readDouble();
+            double V_y = packetByteBuf.readDouble();
+            double V_z = packetByteBuf.readDouble();
+            return new GasState(pos, index, Ek, n, V_x, V_y, V_z);
+        });
 
         CHANNEL.registerClientboundDeferred(ClientAddBlockEntity.class);
         CHANNEL.registerClientboundDeferred(ClientSyncState.class);
         CHANNEL.registerClientboundDeferred(ClientGetSimulation.class);
-//        CHANNEL.registerClientboundDeferred(ClientRemoveRigidBodies.class);
+        CHANNEL.registerClientboundDeferred(ClientSyncGasState.class);
         CHANNEL.registerServerbound(ServerRequestBlockEntity.class, Networking::handleRequestBlockEntity);
+        CHANNEL.registerServerbound(ServerAddGasSyncPosition.class, Networking::handleAddGasSync);
+        CHANNEL.registerServerbound(ServerRemoveGasSyncPosition.class, Networking::handleRemoveGasSync);
     }
 
-    @Environment(EnvType.CLIENT)
-    public static void sendBlockEntityRequest(BlockPos position, RegistryKey<World> worldKey) {
-        CHANNEL.clientHandle().send(new Networking.ServerRequestBlockEntity(position, worldKey.getValue()));
+    private static void handleRemoveGasSync(ServerRemoveGasSyncPosition packet, ServerAccess access) {
+        GasSimulator.removeFromSync(access.player(), packet.position);
+    }
+
+    private static void handleAddGasSync(ServerAddGasSyncPosition packet, ServerAccess access) {
+        final var server = access.runtime();
+        final var world = server.getWorld(RegistryKey.of(RegistryKeys.WORLD, packet.world));
+        if(world == null) {
+            Fizite.LOGGER.error("Server doesn't have a world with key " + packet.world);
+            return;
+        }
+        if(!world.isChunkLoaded(packet.position))
+            return;
+        final var entity = world.getBlockEntity(packet.position);
+        if(entity == null) {
+            Fizite.LOGGER.warn("Requested gas sync position doesn't have an entity");
+            return;
+        }
+        if(entity instanceof final IGasCellProvider provider) {
+            GasSimulator.addToSync(access.player(), packet.position, provider);
+        } else {
+            Fizite.LOGGER.warn("Requested gas sync position is not a gas cell provider");
+            return;
+        }
     }
 
     private static void handleRequestBlockEntity(ServerRequestBlockEntity packet, ServerAccess access) {
@@ -75,7 +124,6 @@ public class Networking {
             } else {
                 waitingForEntity.put(packet.entityPosition, new WaitListEntry(access.player()));
             }
-//            Fizite.LOGGER.error("Requested physics indices for position without a physics provider");
             return;
         }
 

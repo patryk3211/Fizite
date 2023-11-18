@@ -29,10 +29,7 @@ public class DebugCommands {
     }
 
     private static int fizite_times(CommandContext<ServerCommandSource> context) {
-        context.getSource().sendFeedback(() -> {
-            final var report = PhysicsStorage.get(context.getSource().getWorld()).timingReport();
-            return Text.literal(report);
-        }, false);
+        context.getSource().sendFeedback(() -> PhysicsStorage.get(context.getSource().getWorld()).timingReport(), false);
         return 1;
     }
 

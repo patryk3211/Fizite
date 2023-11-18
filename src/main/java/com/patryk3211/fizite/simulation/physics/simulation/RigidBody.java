@@ -129,6 +129,7 @@ public class RigidBody {
             state.positionA = angle;
             restInitialized = true;
         }
+        // TODO: A change in the rest position should also affect the position, even after it was set
         this.restPosition.set(x, y);
         this.restAngle = angle;
     }

@@ -1,7 +1,7 @@
 package com.patryk3211.fizite.blockentity;
 
 import com.patryk3211.fizite.simulation.physics.IPhysicsProvider;
-import com.patryk3211.fizite.simulation.physics.Networking;
+import com.patryk3211.fizite.simulation.Networking;
 import com.patryk3211.fizite.simulation.physics.PhysicalConnection;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
@@ -34,11 +34,11 @@ public class ConnectingRodEntity extends BlockEntity implements IPhysicsProvider
     public void setWorld(World world) {
         super.setWorld(world);
 
-        if(!world.isClient) {
-            PhysicsStorage.get((ServerWorld) world).addBlockEntity(this);
-        } else {
-            Networking.sendBlockEntityRequest(pos, world.getRegistryKey());
-        }
+        PhysicsStorage.get(world).addBlockEntity(this);
+//        if(!world.isClient) {
+//        } else {
+//            Networking.sendBlockEntityRequest(pos, world.getRegistryKey());
+//        }
     }
 
     public Vector2f getBodyPosition() {

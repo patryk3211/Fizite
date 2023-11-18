@@ -15,7 +15,7 @@ public class Debugger extends Item {
 
     private static void print(boolean client, PlayerEntity receiver, String[] lines, String sender) {
         for(final var line : lines) {
-            final var changedLine = "[Debugger@" + (client ? "Client" : "Server") + "/" + sender + "] " + line;
+            final var changedLine = "[Dbg@" + (client ? "C" : "S") + "/" + sender + "] " + line;
             receiver.sendMessage(Text.of(changedLine));
         }
     }

@@ -22,7 +22,7 @@ public class CylinderRenderer implements BlockEntityRenderer<CylinderEntity> {
         final var body = entity.bodies()[0];
 
         final var p0 = body.getRestPosition().x;
-        final var p1 = ClientPhysicsStorage.getInstance().lerpPos(body, tickDelta).x;
+        final var p1 = ClientPhysicsStorage.get().lerpPos(body, tickDelta).x;
 
         matrices.push();
         matrices.translate(0, 0, p0 - p1);

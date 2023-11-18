@@ -28,6 +28,21 @@ public interface IGasCellProvider {
     double getFlowConstant(@NotNull Direction dir);
 
     /**
+     * Get the gas state cell, used mostly for syncing client's data
+     * @param i Index of the gas cell (range 0 to `getCellCount()`)
+     * @return The gas cell
+     */
+    GasCell getCell(int i);
+
+    /**
+     * Get the total gas state cell count provided.
+     * @return Cell count
+     */
+    default int getCellCount() {
+        return 1;
+    }
+
+    /**
      * Utility function to try and create a gas boundary between the base
      * block entity and the block entity at a given direction.
      * @param base Base block entity to connect (assumes that it is a IGasCellProvider)
@@ -67,7 +82,7 @@ public interface IGasCellProvider {
                 Math.min(baseProvider.getFlowConstant(dir), provider.getFlowConstant(dirOpposite))
         );
 
-        final GasWorldBoundaries boundaries = GasWorldBoundaries.getBoundaries(world);
+        final GasStorage boundaries = GasStorage.get(world);
         boundaries.addBoundary(base.getPos(), dir, boundary);
         return true;
     }

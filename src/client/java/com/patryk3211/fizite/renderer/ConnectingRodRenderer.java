@@ -8,10 +8,7 @@ import net.minecraft.client.render.block.BlockModelRenderer;
 import net.minecraft.client.render.block.BlockRenderManager;
 import net.minecraft.client.render.block.entity.BlockEntityRenderer;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
-import net.minecraft.client.render.model.BakedModel;
 import net.minecraft.client.util.math.MatrixStack;
-import org.joml.AxisAngle4d;
-import org.joml.AxisAngle4f;
 import org.joml.Quaternionf;
 
 public class ConnectingRodRenderer implements BlockEntityRenderer<ConnectingRodEntity> {
@@ -32,8 +29,8 @@ public class ConnectingRodRenderer implements BlockEntityRenderer<ConnectingRodE
         matrices.push();
         final var p0 = body.getRestPosition();
         final var a0 = body.getRestAngle();
-        final var p1 = ClientPhysicsStorage.getInstance().lerpPos(body, tickDelta);
-        final var angle = ClientPhysicsStorage.getInstance().lerpAngle(body, tickDelta);
+        final var p1 = ClientPhysicsStorage.get().lerpPos(body, tickDelta);
+        final var angle = ClientPhysicsStorage.get().lerpAngle(body, tickDelta);
         final var x = p0.x - p1.x;
         final var y = p0.y - p1.y;
 

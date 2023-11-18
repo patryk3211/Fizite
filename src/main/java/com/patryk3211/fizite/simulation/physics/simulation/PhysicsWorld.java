@@ -15,8 +15,9 @@ public class PhysicsWorld {
     public static final double DELTA_TIME = Simulator.TICK_RATE; //1.0f / 20.0f;
     public static final int STEPS = 150;
 
-    private final int steps;
-    private final double stepTime;
+    private final double deltaTime;
+    private int steps;
+    private double stepTime;
 
     private final PhysicsSolver physicsSolver;
     private final ConstraintSolver constraintSolver;
@@ -34,9 +35,11 @@ public class PhysicsWorld {
 
     // Profiling info
     public long startTime;
-    public long constraintSolveTime;
-    public long physicsStepTime;
-    public long physicsSolveTime;
+    public long[] constraintSolveTime;
+    public long[] forceGeneratorTime;
+    public long[] physicsStepTime;
+    public long[] physicsSolveTime;
+    public long[] stepHandlersTime;
     public long restPositionSolveTime;
     public long totalTime;
 
@@ -59,8 +62,27 @@ public class PhysicsWorld {
         parametersChanged = true;
         bodyCount = 0;
 
+        this.deltaTime = deltaTime;
         this.steps = steps;
         this.stepTime = deltaTime / steps;
+
+        constraintSolveTime = new long[steps * 4];
+        forceGeneratorTime = new long[steps * 4];
+        physicsStepTime = new long[steps * 4];
+        physicsSolveTime = new long[steps * 4];
+        stepHandlersTime = new long[steps];
+    }
+
+    public void adjustSteps(int newSteps) {
+        this.steps = newSteps;
+        this.stepTime = deltaTime / newSteps;
+
+        // Adjust debug data size
+        constraintSolveTime = new long[steps * 4];
+        forceGeneratorTime = new long[steps * 4];
+        physicsStepTime = new long[steps * 4];
+        physicsSolveTime = new long[steps * 4];
+        stepHandlersTime = new long[steps];
     }
 
     public void clear() {
@@ -70,6 +92,8 @@ public class PhysicsWorld {
         rigidBodies.clear();
         freeIndices.clear();
         constraints.clear();
+        forceGenerators.clear();
+        stepHandlers.clear();
     }
 
     public int addRigidBody(RigidBody body) {
@@ -164,33 +188,36 @@ public class PhysicsWorld {
         physicsSolver.start(stepTime, system);
         startTime += System.nanoTime();
 
+        int debugFrame = 0;
         for(int i = 0; i < steps; ++i) {
             do {
                 // Physics part I
-                physicsStepTime = -System.nanoTime();
+                physicsStepTime[debugFrame] = -System.nanoTime();
                 physicsSolver.step();
-                physicsStepTime += System.nanoTime();
+                physicsStepTime[debugFrame] += System.nanoTime();
 
+                // Generate external forces
+                forceGeneratorTime[debugFrame] = -System.nanoTime();
                 forceGenerators.forEach(g -> g.apply(stepTime));
-//            if(i % 4 == 0) {
-//                for (IPhysicsStepHandler handler : stepHandlers)
-//                    handler.onStep(stepTime);
-//            }
+                forceGeneratorTime[debugFrame] += System.nanoTime();
 
                 // Calculate constraint forces
-                constraintSolveTime = -System.nanoTime();
+                constraintSolveTime[debugFrame] = -System.nanoTime();
                 if (totalConstraintCount != 0)
                     constraintSolver.step();
-                constraintSolveTime += System.nanoTime();
+                constraintSolveTime[debugFrame] += System.nanoTime();
 
                 // Physics part II
-                physicsSolveTime = -System.nanoTime();
+                physicsSolveTime[debugFrame] = -System.nanoTime();
                 physicsSolver.solve();
-                physicsSolveTime += System.nanoTime();
+                physicsSolveTime[debugFrame] += System.nanoTime();
+                ++debugFrame;
             } while(!physicsSolver.stepFinished());
 
             // Post-step
+            stepHandlersTime[i] = -System.nanoTime();
             stepHandlers.forEach(h -> h.onStepEnd(stepTime));
+            stepHandlersTime[i] += System.nanoTime();
         }
         totalTime += System.nanoTime();
 
@@ -249,6 +276,10 @@ public class PhysicsWorld {
             // the entire mass matrix anyway
             constraintSolver.updateMassMatrix(rigidBodyIndex, mass);
         }
+    }
+
+    public int stepCount() {
+        return steps;
     }
 
     // --------======== Debugging stuff ========--------

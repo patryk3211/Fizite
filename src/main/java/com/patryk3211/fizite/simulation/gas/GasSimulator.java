@@ -1,14 +1,14 @@
 package com.patryk3211.fizite.simulation.gas;
 
+import com.patryk3211.fizite.simulation.Networking;
 import com.patryk3211.fizite.simulation.Simulator;
-import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Vector3d;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class GasSimulator {
     public static final double GAS_CONSTANT = 8.31446261815324; // J / (K * mol)
@@ -17,16 +17,18 @@ public class GasSimulator {
     public static final double CHOKED_FLOW_RATIO = Math.sqrt(HEAT_CAPACITY_RATIO) * Math.pow(2 / (HEAT_CAPACITY_RATIO + 1), (HEAT_CAPACITY_RATIO + 1) / (2 * (HEAT_CAPACITY_RATIO - 1)));
     public static final double ATMOSPHERIC_PRESSURE = 101325; // Assume atmospheric pressure of 1013.25hPa
 
-    private static final List<GasWorldBoundaries> simulations = new LinkedList<>();
+    private static final List<GasStorage> simulations = new LinkedList<>();
+    private static final Map<ServerPlayerEntity, Map<BlockPos, IGasCellProvider>> playerSyncStates = new HashMap<>();
 
-    public static void onWorldStart(MinecraftServer minecraftServer, ServerWorld world) {
-        final var storage = new GasWorldBoundaries();
-        world.getPersistentStateManager().set(GasWorldBoundaries.STORAGE_ID, storage);
+    public static GasStorage addToWorld(ServerWorld world) {
+        final var storage = new GasStorage();
+        world.getPersistentStateManager().set(GasStorage.STORAGE_ID, storage);
         simulations.add(storage);
+        return storage;
     }
 
     public static void simulateAll() {
-        for (GasWorldBoundaries simulation : simulations) {
+        for (GasStorage simulation : simulations) {
             for (GasBoundary boundary : simulation.getAllBoundaries()) {
                 boundary.simulate(Simulator.TICK_RATE);
             }
@@ -35,15 +37,34 @@ public class GasSimulator {
 
     public static void clearSimulations() {
         simulations.clear();
+        playerSyncStates.clear();
     }
 
-//    public static void onWorldTickStart(ServerWorld world) {
-//        final GasWorldBoundaries boundaryData = GasWorldBoundaries.getBoundaries(world);
-//
-//        for(final var boundary : boundaryData.getAllBoundaries()) {
-//            boundary.simulate(1.0 / 20.0);
-//        }
-//    }
+    public static void addToSync(ServerPlayerEntity player, BlockPos pos, IGasCellProvider provider) {
+        var cells = playerSyncStates.computeIfAbsent(player, k -> new HashMap<>());
+        cells.put(pos, provider);
+    }
+
+    public static void removeFromSync(ServerPlayerEntity player, BlockPos pos) {
+        var cells = playerSyncStates.get(player);
+        if(cells != null)
+            cells.remove(pos);
+    }
+
+    public static void syncStates() {
+        playerSyncStates.forEach((player, syncStates) -> {
+            final List<Networking.GasState> packetData = new LinkedList<>();
+            syncStates.forEach((pos, cellProvider) -> {
+                for(int i = 0; i < cellProvider.getCellCount(); ++i) {
+                    final var cell = cellProvider.getCell(i);
+                    final var momentum = cell.getMomentum();
+                    packetData.add(new Networking.GasState(pos, i, cell.getMoleculeKineticEnergy(), cell.getTotalMoles(), momentum.x, momentum.y, momentum.z));
+                }
+            });
+            final var packet = new Networking.ClientSyncGasState(packetData.toArray(new Networking.GasState[0]));
+            Networking.CHANNEL.serverHandle(player).send(packet);
+        });
+    }
 
     // This method calculates the mass flow rate
     private static double flowRate(double p0, double p1, double t0) {
@@ -82,7 +103,7 @@ public class GasSimulator {
 
         // Determine the flow direction
         final GasCell source, sink;
-        final double p0, p1, t0, t1, c0, c1;
+        final double p0, p1, t0, c0, c1;
         final Vector3d actualDir;
         if(c1p >= c2p) {
             source = cell1;
@@ -90,7 +111,6 @@ public class GasSimulator {
             p0 = c1p;
             p1 = c2p;
             t0 = c1t;
-            t1 = c2t;
             c0 = crossSection1;
             c1 = crossSection2;
             actualDir = direction;
@@ -100,7 +120,6 @@ public class GasSimulator {
             p0 = c2p;
             p1 = c1p;
             t0 = c2t;
-            t1 = c1t;
             c0 = crossSection2;
             c1 = crossSection1;
             actualDir = direction.negate();
