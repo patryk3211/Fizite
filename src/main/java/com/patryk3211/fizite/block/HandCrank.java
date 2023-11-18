@@ -39,7 +39,7 @@ public class HandCrank extends ModdedBlock implements BlockEntityProvider {
         if(entity.isEmpty())
             return ActionResult.PASS;
         // Check if player has hunger
-        if(player.getHungerManager().getFoodLevel() == 0)
+        if(player.getHungerManager().getFoodLevel() == 0 && !player.isCreative())
             return ActionResult.PASS;
         // Apply force if desired speed is not yet achieved
         final var body = entity.get().bodies()[0];
@@ -56,7 +56,8 @@ public class HandCrank extends ModdedBlock implements BlockEntityProvider {
         }
         if(applyForce != 0) {
             physState.extForceA = applyForce;
-            player.getHungerManager().addExhaustion(0.1f);
+            if(!player.isCreative())
+                player.getHungerManager().addExhaustion(0.1f);
             return ActionResult.SUCCESS;
         }
         return ActionResult.PASS;

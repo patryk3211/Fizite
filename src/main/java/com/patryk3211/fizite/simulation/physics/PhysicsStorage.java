@@ -8,8 +8,9 @@ import com.patryk3211.fizite.simulation.physics.simulation.PhysicsWorld;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.Constraint;
 import com.patryk3211.fizite.utility.DirectionUtilities;
+import io.wispforest.owo.nbt.NbtKey;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.*;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -22,6 +23,8 @@ import net.minecraft.util.math.Vec2f;
 import net.minecraft.world.PersistentState;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
+import org.joml.Vector3d;
+import org.joml.Vector3f;
 
 import java.io.*;
 import java.util.*;
@@ -29,7 +32,55 @@ import java.util.List;
 
 public class PhysicsStorage extends PersistentState {
     public static final String STORAGE_ID = Fizite.MOD_ID + ":physics_world";
-    public static final Type<PhysicsStorage> TYPE = new Type<>(PhysicsStorage::new, (nbt) -> new PhysicsStorage(), null);
+    public static final Type<PhysicsStorage> TYPE = new Type<>(PhysicsStorage::new, PhysicsStorage::new, null);
+
+    /* Nbt stuff for saving the simulation */
+    private record RigidBodyData(Vector3d position, Vector3d velocity, Vector3f restPosition) {
+        public static RigidBodyData decode(NbtCompound data) {
+            final var posNbt = data.getList("p", NbtElement.DOUBLE_TYPE);
+            final var position = new Vector3d(posNbt.getDouble(0), posNbt.getDouble(1), posNbt.getDouble(2));
+            final var velNbt = data.getList("v", NbtElement.DOUBLE_TYPE);
+            final var velocity = new Vector3d(velNbt.getDouble(0), velNbt.getDouble(1), velNbt.getDouble(2));
+            final var restNbt = data.getList("p0", NbtElement.FLOAT_TYPE);
+            final var restPosition = new Vector3f(restNbt.getFloat(0), restNbt.getFloat(1), restNbt.getFloat(2));
+            return new RigidBodyData(position, velocity, restPosition);
+        }
+
+        public static NbtCompound encode(RigidBodyData rigidBodyData) {
+            final var data = new NbtCompound();
+            final var posNbt = new NbtList();
+            posNbt.add(NbtDouble.of(rigidBodyData.position.x));
+            posNbt.add(NbtDouble.of(rigidBodyData.position.y));
+            posNbt.add(NbtDouble.of(rigidBodyData.position.z));
+            data.put("p", posNbt);
+            final var velNbt = new NbtList();
+            velNbt.add(NbtDouble.of(rigidBodyData.velocity.x));
+            velNbt.add(NbtDouble.of(rigidBodyData.velocity.y));
+            velNbt.add(NbtDouble.of(rigidBodyData.velocity.z));
+            data.put("v", velNbt);
+            final var restNbt = new NbtList();
+            restNbt.add(NbtFloat.of(rigidBodyData.restPosition.x));
+            restNbt.add(NbtFloat.of(rigidBodyData.restPosition.y));
+            restNbt.add(NbtFloat.of(rigidBodyData.restPosition.z));
+            data.put("p0", restNbt);
+            return data;
+        }
+    }
+    private static final NbtKey.Type<RigidBodyData> NBT_TYPE_RIGID_BODY = NbtKey.Type.of(NbtElement.COMPOUND_TYPE, (nbt, key) -> {
+        final var data = nbt.getCompound(key);
+        return RigidBodyData.decode(data);
+    }, (nbt, key, data) -> {
+        final var compound = RigidBodyData.encode(data);
+        nbt.put(key, compound);
+    });
+    private static final NbtKey.Type<BlockPos> NBT_TYPE_BLOCK_POS = NbtKey.Type.of(NbtElement.INT_ARRAY_TYPE, (nbtCompound, key) -> {
+        final var array = nbtCompound.getIntArray(key);
+        return new BlockPos(array[0], array[1], array[2]);
+    }, (nbtCompound, key, pos) -> nbtCompound.putIntArray(key, new int[] { pos.getX(), pos.getY(), pos.getZ() }));
+    private static final NbtKey<RigidBodyData> NBT_RIGID_BODY = new NbtKey<>("rb", NBT_TYPE_RIGID_BODY);
+    private static final NbtKey<BlockPos> NBT_POSITION = new NbtKey<>("pos", NBT_TYPE_BLOCK_POS);
+    private static final NbtKey<NbtList> NBT_BODIES = new NbtKey.ListKey<>("bodies", NBT_TYPE_RIGID_BODY);
+    private static final NbtKey<NbtList> NBT_POSITION_DATA = new NbtKey.ListKey<>("positionData", NbtKey.Type.COMPOUND);
 
     private static final Map<RegistryKey<World>, PhysicsStorage> simulations = new HashMap<>();
 
@@ -54,10 +105,17 @@ public class PhysicsStorage extends PersistentState {
 
     protected final PhysicsWorld simulation;
     protected final Map<BlockPos, PositionData> dataMap;
+    private final Map<BlockPos, RigidBodyData[]> saveData;
 
     public PhysicsStorage() {
         simulation = new PhysicsWorld();
         dataMap = new HashMap<>();
+        saveData = new HashMap<>();
+    }
+
+    public PhysicsStorage(NbtCompound nbt) {
+        this();
+        readNbt(nbt);
     }
 
     public void addConstraint(Constraint constraint, BlockPos position, Direction direction) {
@@ -161,10 +219,24 @@ public class PhysicsStorage extends PersistentState {
         final var provider = (IPhysicsProvider) entity;
 
         final var entry = createEntry(entity, provider);
+        final var savedState = saveData.remove(entity.getPos());
 
-        // Add all rigid bodies and internal constraints to the simulation
+        // Add all rigid positionData and internal constraints to the simulation
+        int index = 0;
         for(final var body : entry.bodies) {
             simulation.addRigidBody(body);
+            if(savedState != null) {
+                // Set body state to save state for every body
+                final var state = savedState[index++];
+                body.setRestPosition(state.restPosition.x, state.restPosition.y, state.restPosition.z);
+                final var bodyState = body.getState();
+                bodyState.position.x = state.position.x;
+                bodyState.position.y = state.position.y;
+                bodyState.positionA = state.position.z;
+                bodyState.velocity.x = state.velocity.x;
+                bodyState.velocity.y = state.velocity.y;
+                bodyState.velocityA = state.velocity.z;
+            }
         }
         if(entry.internalConstraints != null) {
             for (final var constraint : entry.internalConstraints) {
@@ -184,7 +256,7 @@ public class PhysicsStorage extends PersistentState {
     }
 
     public Networking.ClientSyncState makeSyncPacket() {
-        // Since we store bodies in a sparse list, we have to skip the null entries,
+        // Since we store positionData in a sparse list, we have to skip the null entries,
         // this reduces the effective size of our sync packet since we don't have
         // to encode and send them.
         final var bodies = simulation.bodies();
@@ -274,14 +346,64 @@ public class PhysicsStorage extends PersistentState {
         return result;
     }
 
+    private RigidBodyData encodeBody(RigidBody body) {
+        final var state = body.getState();
+        return new RigidBodyData(
+                new Vector3d(state.position.x, state.position.y, state.positionA),
+                new Vector3d(state.velocity.x, state.velocity.y, state.velocityA),
+                new Vector3f(body.getRestPosition().x, body.getRestPosition().y, body.getRestAngle())
+        );
+    }
+
     @Override
     public NbtCompound writeNbt(NbtCompound nbt) {
-        return null;
+        final var positionData = new NbtList();
+        dataMap.forEach((pos, data) -> {
+            final var entry = new NbtCompound();
+            entry.put(NBT_POSITION, pos);
+            if(data.bodies.length == 1) {
+                // Encode a single body
+                entry.put(NBT_RIGID_BODY, encodeBody(data.bodies[0]));
+            } else {
+                // Encode a body list
+                final var bodies = new NbtList();
+                for(final var body : data.bodies)
+                    bodies.add(RigidBodyData.encode(encodeBody(body)));
+                entry.put(NBT_BODIES, bodies);
+            }
+            positionData.add(entry);
+        });
+        nbt.put(NBT_POSITION_DATA, positionData);
+        return nbt;
+    }
+
+    public void readNbt(NbtCompound nbt) {
+        final var positionData = nbt.get(NBT_POSITION_DATA);
+        positionData.forEach(element -> {
+            if(!(element instanceof final NbtCompound entry))
+                return;
+            final var pos = entry.get(NBT_POSITION);
+            RigidBodyData[] data;
+            if(entry.has(NBT_RIGID_BODY)) {
+                // This entry has a single body
+                data = new RigidBodyData[] { entry.get(NBT_RIGID_BODY) };
+            } else {
+                // This entry has multiple bodies
+                NbtList bodies = entry.get(NBT_BODIES);
+                data = new RigidBodyData[bodies.size()];
+                for(int i = 0; i < bodies.size(); ++i)
+                    data[i] = RigidBodyData.decode(bodies.getCompound(i));
+            }
+            saveData.put(pos, data);
+        });
     }
 
     @Override
     public void save(File file) {
-        // Do nothing...
+        // Since even the smallest change need to be saved we just make
+        // this storage class constantly dirty.
+        markDirty();
+        super.save(file);
     }
 
     @NotNull
@@ -300,8 +422,7 @@ public class PhysicsStorage extends PersistentState {
     }
 
     public static PhysicsStorage addToWorld(ServerWorld world) {
-        final var storage = new PhysicsStorage();
-        world.getPersistentStateManager().set(STORAGE_ID, storage);
+        final var storage = world.getPersistentStateManager().getOrCreate(TYPE, STORAGE_ID);
         simulations.put(world.getRegistryKey(), storage);
         return storage;
     }
