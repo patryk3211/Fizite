@@ -1,7 +1,6 @@
 package com.patryk3211.fizite.blockentity;
 
 import com.patryk3211.fizite.simulation.physics.IPhysicsProvider;
-import com.patryk3211.fizite.simulation.Networking;
 import com.patryk3211.fizite.simulation.physics.PhysicalConnection;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
@@ -35,7 +34,6 @@ public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider, I
     @Override
     public void setWorld(World world) {
         super.setWorld(world);
-
         PhysicsStorage.get(world).addBlockEntity(this);
     }
 
@@ -55,7 +53,7 @@ public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider, I
     }
 
     @Override
-    public PhysicalConnection.ConnectionType getConnectionType(Direction dir) {
+    public PhysicalConnection.@NotNull ConnectionType getConnectionType(Direction dir) {
         return switch(dir) {
             case NORTH -> PhysicalConnection.ConnectionType.XY;
             case EAST, WEST -> PhysicalConnection.ConnectionType.ROTATIONAL;

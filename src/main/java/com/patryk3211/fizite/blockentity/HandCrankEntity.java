@@ -1,7 +1,6 @@
 package com.patryk3211.fizite.blockentity;
 
 import com.patryk3211.fizite.simulation.physics.IPhysicsProvider;
-import com.patryk3211.fizite.simulation.Networking;
 import com.patryk3211.fizite.simulation.physics.PhysicalConnection;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
@@ -39,15 +38,7 @@ public class HandCrankEntity extends BlockEntity implements IPhysicsProvider {
     @Override
     public void setWorld(World world) {
         super.setWorld(world);
-
         PhysicsStorage.get(world).addBlockEntity(this);
-//        if(!world.isClient) {
-//            final var storage = PhysicsStorage.get(world);
-//            storage.addBlockEntity(this);
-////            storage.addToForceReset(body);
-//        } else {
-//            Networking.sendBlockEntityRequest(pos, world.getRegistryKey());
-//        }
     }
 
     @Override
@@ -61,7 +52,7 @@ public class HandCrankEntity extends BlockEntity implements IPhysicsProvider {
     }
 
     @Override
-    public PhysicalConnection.ConnectionType getConnectionType(Direction dir) {
+    public PhysicalConnection.@NotNull ConnectionType getConnectionType(Direction dir) {
         return dir == facing ? PhysicalConnection.ConnectionType.ROTATIONAL : PhysicalConnection.ConnectionType.NONE;
     }
 
@@ -74,9 +65,4 @@ public class HandCrankEntity extends BlockEntity implements IPhysicsProvider {
     public @Nullable Constraint[] internalConstraints() {
         return new Constraint[] { positionConstraint };
     }
-
-//    @Override
-//    public boolean externalForceReset() {
-//        return true;
-//    }
 }

@@ -8,8 +8,6 @@ import com.patryk3211.fizite.simulation.physics.simulation.PhysicsWorld;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.Constraint;
 import com.patryk3211.fizite.utility.DirectionUtilities;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.RegistryKey;
@@ -28,7 +26,6 @@ import org.jetbrains.annotations.NotNull;
 import java.io.*;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class PhysicsStorage extends PersistentState {
     public static final String STORAGE_ID = Fizite.MOD_ID + ":physics_world";
@@ -57,7 +54,6 @@ public class PhysicsStorage extends PersistentState {
 
     protected final PhysicsWorld simulation;
     protected final Map<BlockPos, PositionData> dataMap;
-    private ServerWorld world;
 
     public PhysicsStorage() {
         simulation = new PhysicsWorld();
@@ -215,24 +211,6 @@ public class PhysicsStorage extends PersistentState {
         return new Networking.ClientSyncState(indices, positions, velocities, angles, angularVelocities);
     }
 
-    public Networking.ClientGetSimulation getSimulationPacket() {
-        BlockPos[] positions = new BlockPos[dataMap.size()];
-        int[][] rigidBodies = new int[dataMap.size()][];
-
-        AtomicInteger index = new AtomicInteger();
-        dataMap.forEach((pos, data) -> {
-            positions[index.get()] = pos;
-            rigidBodies[index.get()] = new int[data.bodies.length];
-
-            final var rbIndices = rigidBodies[index.getAndIncrement()];
-            for(int i = 0; i < data.bodies.length; ++i) {
-                rbIndices[i] = data.bodies[i].index();
-            }
-        });
-
-        return new Networking.ClientGetSimulation(positions, rigidBodies);
-    }
-
     private static Style chooseStyle(double time) {
         if(time < 10000) {
             return Style.EMPTY.withColor(Formatting.GREEN);
@@ -318,15 +296,12 @@ public class PhysicsStorage extends PersistentState {
     }
 
     public static void simulateAll() {
-        simulations.forEach((key, sim) -> {
-            sim.simulation.simulate();
-        });
+        simulations.forEach((key, sim) -> sim.simulation.simulate());
     }
 
     public static PhysicsStorage addToWorld(ServerWorld world) {
         final var storage = new PhysicsStorage();
         world.getPersistentStateManager().set(STORAGE_ID, storage);
-        storage.world = world;
         simulations.put(world.getRegistryKey(), storage);
         return storage;
     }
@@ -363,19 +338,6 @@ public class PhysicsStorage extends PersistentState {
     public static void clearSimulations() {
         simulations.clear();
     }
-
-//    public static void onPlayerChangeWorld(ServerPlayerEntity player, ServerWorld oldWorld, ServerWorld newWorld) {
-//        final var key = newWorld.getRegistryKey();
-//        final var sim = simulations.get(key);
-//        if(sim == null) {
-//            Fizite.LOGGER.error("World " + key + " doesn't have a physics simulation");
-//            return;
-//        }
-//
-//        // Send current simulation state to the new player
-//        Fizite.LOGGER.info("Sending simulation (" + key + ") state to player '" + player.getName() + "'");
-//        Networking.CHANNEL.serverHandle(player).send(sim.getSimulationPacket(), sim.makeSyncPacket());
-//    }
 
     public static void recordFrames(RegistryKey<World> simWorld, int count, Runnable finishCallback) {
         simulations.get(simWorld).simulation.addOutputWriter(count, finishCallback);

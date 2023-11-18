@@ -58,16 +58,18 @@ public class Simulator {
         Fizite.LOGGER.info("Stopping simulation thread");
         solverRunning = false;
         PhysicsStorage.clearSimulations();
-        GasSimulator.clearSimulations();
+        GasSimulator.clearSync();
         tickCount = 0;
     }
 
+    @SuppressWarnings("unused")
     public static void onWorldStart(MinecraftServer server, ServerWorld world) {
         final var physics = PhysicsStorage.addToWorld(world);
         final var gas = GasSimulator.addToWorld(world);
         physics.addStepHandler(new GasStepHandler(gas));
     }
 
+    @SuppressWarnings("unused")
     public static void onServerTickStart(MinecraftServer server) {
         // Dispatch worker thread
         solveStart.release();

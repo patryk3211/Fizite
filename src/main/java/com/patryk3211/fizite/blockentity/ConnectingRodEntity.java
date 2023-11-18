@@ -1,14 +1,12 @@
 package com.patryk3211.fizite.blockentity;
 
 import com.patryk3211.fizite.simulation.physics.IPhysicsProvider;
-import com.patryk3211.fizite.simulation.Networking;
 import com.patryk3211.fizite.simulation.physics.PhysicalConnection;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.Constraint;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
@@ -20,39 +18,18 @@ public class ConnectingRodEntity extends BlockEntity implements IPhysicsProvider
     private static final Vector2f linearAnchor = new Vector2f(0.5f, 0);
     private static final Vector2f xyAnchor = new Vector2f(-0.5f, 0);
 
-    private final Vector2f position;
     private final RigidBody body;
 
     public ConnectingRodEntity(BlockPos pos, BlockState state) {
         super(AllBlockEntities.CONNECTING_ROD_ENTITY, pos, state);
 
         body = new RigidBody();
-        position = new Vector2f();
     }
 
     @Override
     public void setWorld(World world) {
         super.setWorld(world);
-
         PhysicsStorage.get(world).addBlockEntity(this);
-//        if(!world.isClient) {
-//        } else {
-//            Networking.sendBlockEntityRequest(pos, world.getRegistryKey());
-//        }
-    }
-
-    public Vector2f getBodyPosition() {
-        final var p0 = body.getRestPosition();
-        final var p1 = body.getState().position;
-        position.x = (float) (p0.x - p1.x);
-        position.y = (float) (p0.y - p1.y);
-        return position;
-    }
-
-    public float getBodyAngle() {
-        final var a0 = body.getRestAngle();
-        final var a1 = body.getState().positionA;
-        return (float) (a0 - a1);
     }
 
     @Override
@@ -70,7 +47,7 @@ public class ConnectingRodEntity extends BlockEntity implements IPhysicsProvider
     }
 
     @Override
-    public PhysicalConnection.ConnectionType getConnectionType(Direction dir) {
+    public PhysicalConnection.@NotNull ConnectionType getConnectionType(Direction dir) {
         return switch(dir) {
             case NORTH -> PhysicalConnection.ConnectionType.LINEAR_BEARING;
             case SOUTH -> PhysicalConnection.ConnectionType.XY;

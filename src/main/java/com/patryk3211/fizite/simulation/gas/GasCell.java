@@ -2,7 +2,6 @@ package com.patryk3211.fizite.simulation.gas;
 
 import io.wispforest.owo.nbt.NbtKey;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import org.joml.Vector3d;
 
 // Currently we assume a D = 3 (degrees of freedom of particles),
@@ -150,8 +149,6 @@ public class GasCell {
 
         volume += deltaV;
         kineticEnergy += work;
-        if(kineticEnergy < 0)
-            kineticEnergy = 0;
     }
 
     public void changeVolumeTo(double newVolume) {
@@ -163,8 +160,6 @@ public class GasCell {
 
         volume += area * lengthDelta;
         kineticEnergy += work;
-//        if(kineticEnergy < 0)
-//            kineticEnergy = 0;
     }
 
     public void changeTemperature(double deltaT) {

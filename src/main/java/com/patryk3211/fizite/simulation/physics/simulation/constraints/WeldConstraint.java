@@ -20,8 +20,8 @@ public class WeldConstraint extends BearingConstraint {
         super.calculate(row, C, J, JDot);
 
         // Apply additional constraints to keep the two bodies inline
-        J.set(row + 2, column1 + 2, 1);
-        J.set(row + 2, column2 + 2, -1);
-        C.set(row + 2, 0, state1.positionA - state2.positionA);
+        J.unsafe_set(row + 2, column1 + 2, 1);
+        J.unsafe_set(row + 2, column2 + 2, -1);
+        C.unsafe_set(row + 2, 0, state1.positionA - state2.positionA);
     }
 }

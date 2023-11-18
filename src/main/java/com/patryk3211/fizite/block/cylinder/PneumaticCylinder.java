@@ -47,7 +47,6 @@ public abstract class PneumaticCylinder extends ModdedBlock implements BlockEnti
     public PneumaticCylinder(Material material, float pistonArea, float strokeLength, float pistonTopVolume) {
         super(FabricBlockSettings.create().strength(7.0f));
         this.material = material;
-//        this.maxPressure = maxPressure;
         this.pistonArea = pistonArea;
         this.strokeLength = strokeLength;
         this.pistonTopVolume = pistonTopVolume;
@@ -66,17 +65,6 @@ public abstract class PneumaticCylinder extends ModdedBlock implements BlockEnti
     public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
         return new CylinderEntity(pos, state, material);
     }
-
-//    @Nullable
-//    @Override
-//    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-//        return world.isClient ?
-//                null :
-//                (w, p, s, t) -> {
-//                    assert type == AllBlockEntities.CYLINDER_ENTITY : "Cylinder ticker called for non cylinder entity";
-//                    CylinderEntity.serverTick(w, p, s, (CylinderEntity) t);
-//                };
-//    }
 
     @Override
     protected void onBlockRemoved(BlockState state, World world, BlockPos pos) {

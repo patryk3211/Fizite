@@ -31,32 +31,11 @@ public class PhysicalSystem {
         states[index] = state;
     }
 
-//    public void addState(PhysicalState state) {
-//        if(length < states.length) {
-//            states[length++] = state;
-//            return;
-//        }
-//
-//        resize(length + 1);
-//        states[length++] = state;
-//    }
-
     public PhysicalState[] getStates() {
         return states;
     }
 
     public int size() {
         return length;
-    }
-
-    public void copy(PhysicalSystem system) {
-        resize(system.size());
-        for(int i = 0; i < system.size(); ++i) {
-            if(system.states[i] == null)
-                continue;
-            if(states[i] == null)
-                states[i] = new PhysicalState();
-            states[i].copy(system.states[i]);
-        }
     }
 }

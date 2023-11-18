@@ -96,7 +96,7 @@ public class PhysicsWorld {
         stepHandlers.clear();
     }
 
-    public int addRigidBody(RigidBody body) {
+    public void addRigidBody(RigidBody body) {
         int index;
         if(freeIndices.isEmpty()) {
             index = rigidBodies.size();
@@ -110,7 +110,6 @@ public class PhysicsWorld {
         body.assign(index, this);
         ++bodyCount;
         parametersChanged = true;
-        return index;
     }
 
     public void addRigidBody(RigidBody body, int index) {

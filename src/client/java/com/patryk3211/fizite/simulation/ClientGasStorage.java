@@ -3,8 +3,6 @@ package com.patryk3211.fizite.simulation;
 import com.patryk3211.fizite.Fizite;
 import com.patryk3211.fizite.simulation.gas.GasStorage;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.BlockPos;
 
@@ -33,7 +31,7 @@ public class ClientGasStorage extends GasStorage {
         ClientNetworking.removeFromGasSync(pos);
     }
 
-    public static void onDisconnect(ClientPlayNetworkHandler networkHandler, MinecraftClient client) {
+    public static void onDisconnect() {
         Fizite.LOGGER.info("Clearing client gas simulation");
         gas.boundaries.clear();
         gas.collectedBoundaries.clear();

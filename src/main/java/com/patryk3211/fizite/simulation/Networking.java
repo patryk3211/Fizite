@@ -8,15 +8,12 @@ import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import io.wispforest.owo.network.OwoNetChannel;
 import io.wispforest.owo.network.ServerAccess;
 import io.wispforest.owo.network.serialization.PacketBufSerializer;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec2f;
-import net.minecraft.world.World;
 
 import java.util.*;
 
@@ -106,7 +103,6 @@ public class Networking {
             GasSimulator.addToSync(access.player(), packet.position, provider);
         } else {
             Fizite.LOGGER.warn("Requested gas sync position is not a gas cell provider");
-            return;
         }
     }
 

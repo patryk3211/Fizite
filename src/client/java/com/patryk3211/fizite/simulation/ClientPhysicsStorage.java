@@ -6,8 +6,6 @@ import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.simulation.PhysicsWorld;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.world.ClientWorld;
 import org.joml.Vector2d;
 import org.joml.Vector3d;
@@ -27,12 +25,13 @@ public class ClientPhysicsStorage extends PhysicsStorage {
         return physics;
     }
 
+    @SuppressWarnings("unused")
     public static void onWorldTickStart(ClientWorld world) {
         physics.copyPositions();
         physics.simulation.simulate();
     }
 
-    public static void onDisconnect(ClientPlayNetworkHandler networkHandler, MinecraftClient client) {
+    public static void onDisconnect() {
         Fizite.LOGGER.info("Clearing client physics simulation");
         physics.dataMap.clear();
         physics.simulation.clear();
@@ -137,6 +136,7 @@ public class ClientPhysicsStorage extends PhysicsStorage {
         return Math.atan2(lerped.y, lerped.x);
     }
 
+    @SuppressWarnings("unused")
     public static void onBlockEntityUnload(BlockEntity entity, ClientWorld world) {
         physics.clearPosition(entity.getPos());
     }

@@ -1,7 +1,6 @@
 package com.patryk3211.fizite.simulation.gas;
 
 import com.patryk3211.fizite.simulation.Networking;
-import com.patryk3211.fizite.simulation.Simulator;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -17,26 +16,15 @@ public class GasSimulator {
     public static final double CHOKED_FLOW_RATIO = Math.sqrt(HEAT_CAPACITY_RATIO) * Math.pow(2 / (HEAT_CAPACITY_RATIO + 1), (HEAT_CAPACITY_RATIO + 1) / (2 * (HEAT_CAPACITY_RATIO - 1)));
     public static final double ATMOSPHERIC_PRESSURE = 101325; // Assume atmospheric pressure of 1013.25hPa
 
-    private static final List<GasStorage> simulations = new LinkedList<>();
     private static final Map<ServerPlayerEntity, Map<BlockPos, IGasCellProvider>> playerSyncStates = new HashMap<>();
 
     public static GasStorage addToWorld(ServerWorld world) {
         final var storage = new GasStorage();
         world.getPersistentStateManager().set(GasStorage.STORAGE_ID, storage);
-        simulations.add(storage);
         return storage;
     }
 
-    public static void simulateAll() {
-        for (GasStorage simulation : simulations) {
-            for (GasBoundary boundary : simulation.getAllBoundaries()) {
-                boundary.simulate(Simulator.TICK_RATE);
-            }
-        }
-    }
-
-    public static void clearSimulations() {
-        simulations.clear();
+    public static void clearSync() {
         playerSyncStates.clear();
     }
 

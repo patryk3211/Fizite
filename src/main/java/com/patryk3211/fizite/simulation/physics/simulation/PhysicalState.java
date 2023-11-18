@@ -58,62 +58,6 @@ public class PhysicalState {
         this.extForceA += (wY - this.position.y) * -forceX + (wX - this.position.x) * forceY;
     }
 
-//    public void velocityWithImpulse(float dT, float mass, Vector2d velocity) {
-//        velocity.set(
-//                this.cForce.x * dT / mass + this.velocity.x,
-//                this.cForce.y * dT / mass + this.velocity.y
-//        );
-//    }
-//
-//    public void velocityWithImpulseAt(Vector2fc local, float dT, float mass, Vector2d velocity) {
-//        final var thetaCos = Math.cos(positionA);
-//        final var thetaSin = Math.sin(positionA);
-//
-//        final var wX = thetaCos * local.x() - thetaSin * local.y();
-//        final var wY = thetaSin * local.x() + thetaCos * local.y();
-//
-//        final var velAWithImpulse = this.velocityA + this.cForceA * dT / mass;
-//        final var linearVelX = -velAWithImpulse * wY;
-//        final var linearVelY = velAWithImpulse * wX;
-//
-//        velocity.set(
-//                this.cForce.x * dT / mass + this.velocity.x + linearVelX,
-//                this.cForce.y * dT / mass + this.velocity.y + linearVelY
-//        );
-//    }
-
-//    public void applyImpulse(Vector2dc impulse) {
-//        this.cForce.x += impulse.x();
-//        this.cForce.y += impulse.y();
-//    }
-//
-//    public void applyImpulse(Vector2fc local, Vector2dc impulse) {
-//        this.cForce.x += impulse.x();
-//        this.cForce.y += impulse.y();
-//
-//        final var thetaCos = Math.cos(positionA);
-//        final var thetaSin = Math.sin(positionA);
-//
-//        final var wX = thetaCos * local.x() - thetaSin * local.y();
-//        final var wY = thetaSin * local.x() + thetaCos * local.y();
-//
-//        this.cForceA += wY * -impulse.x() + wX * impulse.y();
-//    }
-//
-//    public void applyThetaImpulse(Vector2fc local, Vector2dc impulse) {
-//        final var thetaCos = Math.cos(positionA);
-//        final var thetaSin = Math.sin(positionA);
-//
-//        final var wX = thetaCos * local.x() - thetaSin * local.y();
-//        final var wY = thetaSin * local.x() + thetaCos * local.y();
-//
-//        this.cForceA += wY * -impulse.x() + wX * impulse.y();
-//    }
-//
-//    public void applyThetaImpulse(double value) {
-//        this.cForceA += value;
-//    }
-
     public void copy(PhysicalState state) {
         position.set(state.position);
         positionA = state.positionA;

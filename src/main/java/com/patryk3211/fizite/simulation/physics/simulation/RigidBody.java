@@ -1,11 +1,7 @@
 package com.patryk3211.fizite.simulation.physics.simulation;
 
 import com.patryk3211.fizite.Fizite;
-import net.minecraft.util.math.Vec2f;
-import org.joml.Vector2d;
-import org.joml.Vector2dc;
 import org.joml.Vector2f;
-import org.joml.Vector2fc;
 
 public class RigidBody {
     private final PhysicalState state;
@@ -29,62 +25,6 @@ public class RigidBody {
         this.mass = 1;
         this.externalForceReset = false;
         this.restInitialized = false;
-    }
-
-    public void velocityWithImpulse(float dT, Vector2d velocity) {
-        velocity.set(
-                state.cForce.x * dT / mass + state.velocity.x,
-                state.cForce.y * dT / mass + state.velocity.y
-        );
-    }
-
-    public void velocityWithImpulseAt(Vector2fc local, float dT, Vector2d velocity) {
-        final var thetaCos = Math.cos(state.positionA);
-        final var thetaSin = Math.sin(state.positionA);
-
-        final var wX = thetaCos * local.x() - thetaSin * local.y();
-        final var wY = thetaSin * local.x() + thetaCos * local.y();
-
-        final var velAWithImpulse = state.velocityA + state.cForceA * dT / mass;
-        final var linearVelX = -velAWithImpulse * wY;
-        final var linearVelY = velAWithImpulse * wX;
-
-        velocity.set(
-                state.cForce.x * dT / mass + state.velocity.x + linearVelX,
-                state.cForce.y * dT / mass + state.velocity.y + linearVelY
-        );
-    }
-
-    public void applyImpulse(Vector2dc impulse) {
-        state.cForce.x += impulse.x();
-        state.cForce.y += impulse.y();
-    }
-
-    public void applyImpulse(Vector2fc local, Vector2dc impulse) {
-        state.cForce.x += impulse.x();
-        state.cForce.y += impulse.y();
-
-        final var thetaCos = Math.cos(state.positionA);
-        final var thetaSin = Math.sin(state.positionA);
-
-        final var wX = thetaCos * local.x() - thetaSin * local.y();
-        final var wY = thetaSin * local.x() + thetaCos * local.y();
-
-        state.cForceA += wY * -impulse.x() + wX * impulse.y();
-    }
-
-    public void applyThetaImpulse(Vector2fc local, Vector2dc impulse) {
-        final var thetaCos = Math.cos(state.positionA);
-        final var thetaSin = Math.sin(state.positionA);
-
-        final var wX = thetaCos * local.x() - thetaSin * local.y();
-        final var wY = thetaSin * local.x() + thetaCos * local.y();
-
-        state.cForceA += wY * -impulse.x() + wX * impulse.y();
-    }
-
-    public void applyThetaImpulse(double value) {
-        state.cForceA += value;
     }
 
     public float getMass() {
@@ -128,8 +68,13 @@ public class RigidBody {
             state.position.y = y;
             state.positionA = angle;
             restInitialized = true;
+        } else {
+            // Offset current position by rest position change
+            state.position.x += x - restPosition.x;
+            state.position.y += y - restPosition.y;
+            state.positionA += angle - restAngle;
         }
-        // TODO: A change in the rest position should also affect the position, even after it was set
+        // Update rest position
         this.restPosition.set(x, y);
         this.restAngle = angle;
     }

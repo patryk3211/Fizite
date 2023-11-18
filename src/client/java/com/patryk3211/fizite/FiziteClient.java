@@ -13,8 +13,6 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactories;
 
 public class FiziteClient implements ClientModInitializer {
@@ -34,8 +32,8 @@ public class FiziteClient implements ClientModInitializer {
 		ClientBlockEntityEvents.BLOCK_ENTITY_UNLOAD.register(ClientPhysicsStorage::onBlockEntityUnload);
 		ClientBlockEntityEvents.BLOCK_ENTITY_UNLOAD.register(ClientGasStorage::onBlockEntityUnload);
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
-            ClientPhysicsStorage.onDisconnect(handler, client);
-            ClientGasStorage.onDisconnect(handler, client);
+            ClientPhysicsStorage.onDisconnect();
+            ClientGasStorage.onDisconnect();
 			// Re-add gas physics step handler
             ClientPhysicsStorage.get().addStepHandler(new Simulator.GasStepHandler(ClientGasStorage.get()));
         });

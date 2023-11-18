@@ -20,8 +20,6 @@ public class ConstraintSolver {
     private DMatrixRMaj C;
     private DMatrixRMaj CDot;
 
-//    private DMatrixRMaj qRest;
-
     private DMatrixSparseCSC JT;
 
     private DMatrixRMaj extForce;
@@ -74,7 +72,6 @@ public class ConstraintSolver {
 
         // Create matrices with new sizes
         qDot = new DMatrixRMaj(bodyCount * 3, 1);
-//        qRest = new DMatrixRMaj(bodyCount * 3, 1);
         J = new DMatrixSparseCSC(totalConstraintCount, bodyCount * 3);
         JDot = new DMatrixSparseCSC(totalConstraintCount, bodyCount * 3);
 
@@ -168,7 +165,7 @@ public class ConstraintSolver {
 
         CommonOps_DDRM.subtract(right, left, rMatrix);
         if(checkError(rMatrix, right)) {
-            return true;
+            return false;
         }
 
         pMatrix.setTo(rMatrix);
@@ -184,7 +181,7 @@ public class ConstraintSolver {
             }
 
             if(checkError(rMatrix, right)) {
-                return true;
+                return false;
             }
 
             final double rk1Mag = squareMag(rMatrix);
@@ -194,7 +191,7 @@ public class ConstraintSolver {
             }
         }
 
-        return false;
+        return true;
     }
 
     public void step() {
@@ -209,7 +206,6 @@ public class ConstraintSolver {
             qDot.unsafe_set(row + 1, 0, state.velocity.y);
             qDot.unsafe_set(row + 2, 0, state.velocityA);
 
-            // TODO: Calculate external forces
             extForce.unsafe_set(row, 0, state.extForce.x);
             extForce.unsafe_set(row + 1, 0, state.extForce.y);
             extForce.unsafe_set(row + 2, 0, state.extForceA);
@@ -252,7 +248,7 @@ public class ConstraintSolver {
         rightPrepareTime += System.nanoTime();
 
         solveTime = -System.nanoTime();
-        if(!solve(this::makeLeft)) {
+        if(solve(this::makeLeft)) {
             System.out.println("Failed to solve");
         }
         CommonOps_DSCC.mult(JT, lambda, cForce);
@@ -287,14 +283,12 @@ public class ConstraintSolver {
 
         // Equation:
         // J * J_T * lambda = -C
+        // [-J * qRest - C], gets simplified to -C because qRest = 0,
+        // it might be useful if I want to calculate the rest positions in steps
         CommonOps_DDRM.changeSign(C, right);
-        // [-J * qRest - C]
-//        CommonOps_DSCC.mult(J, qRest, denseReg1CC);
-//        CommonOps_DDRM.add(denseReg1CC, C, right);
-//        CommonOps_DDRM.changeSign(right);
 
         CommonOps_DSCC.transpose(J, JT, null);
-        if (!solve(this::makeLeftMassless)) {
+        if (solve(this::makeLeftMassless)) {
             System.out.println("Failed to solve");
         }
         CommonOps_DSCC.mult(JT, lambda, cForce);

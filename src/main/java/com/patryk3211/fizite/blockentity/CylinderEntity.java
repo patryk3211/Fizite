@@ -1,7 +1,6 @@
 package com.patryk3211.fizite.blockentity;
 
 import com.patryk3211.fizite.block.cylinder.PneumaticCylinder;
-import com.patryk3211.fizite.simulation.Networking;
 import com.patryk3211.fizite.simulation.physics.*;
 import com.patryk3211.fizite.simulation.physics.simulation.FrictionModel;
 import com.patryk3211.fizite.simulation.physics.simulation.IForceGenerator;
@@ -31,12 +30,11 @@ import org.joml.Vector2f;
 import org.joml.Vector3d;
 
 public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPhysicsProvider, IDebugOutput, IPhysicsStepHandler, IForceGenerator {
-//    private static final NbtKey<Float> NBT_EXTENSION = new NbtKey<>("extension", NbtKey.Type.FLOAT);
     private static final Vector2f PISTON_ANCHOR = new Vector2f(-0.5f, 0);
 
     // TODO: Temporary values, may change later
-    private static float STATIC_FRICTION_COEFFICIENT = 0.5f;
-    private static float DYNAMIC_FRICTION_COEFFICIENT = 0.36f;
+    private static final float STATIC_FRICTION_COEFFICIENT = 0.5f;
+    private static final float DYNAMIC_FRICTION_COEFFICIENT = 0.36f;
 
     private final Material material;
     private final GasCell gasStateCell;
@@ -84,14 +82,7 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
     public void setWorld(World world) {
         super.setWorld(world);
         GasStorage.get(world).addBlockEntity(this);
-
         PhysicsStorage.get(world).addBlockEntity(this);
-//        if(!world.isClient) {
-//            // Connect to the neighbor
-//            PhysicsStorage.get(world).addBlockEntity(this);
-//        } else {
-//            Networking.sendBlockEntityRequest(pos, world.getRegistryKey());
-//        }
     }
 
     private float calculateVolume() {
@@ -101,7 +92,7 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
         return (float) (tdcVolume + chamberLength * pistonArea);
     }
 
-    private static double calculateFriction(double deltaTime, double velocity) {
+    private static double calculateFriction(double velocity) {
         return -FrictionModel.DEFAULT.calculate(velocity, 0) * Math.signum(velocity);
     }
 
@@ -117,7 +108,7 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
 
         // Pa = N / m²
         final double force = pressureDifference * pistonArea;
-        final double frictionForce = calculateFriction(deltaTime, body.getState().velocity.x);
+        final double frictionForce = calculateFriction(body.getState().velocity.x);
         if(Double.isNaN(force) || Double.isInfinite(force))
             return;
         body.getState().extForce.x = -force + frictionForce;
@@ -127,14 +118,12 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
     public void readNbt(NbtCompound nbt) {
         super.readNbt(nbt);
         gasStateCell.deserialize(nbt.get(GasCell.NBT_KEY));
-//        extension = nbt.get(NBT_EXTENSION);
     }
 
     @Override
     protected void writeNbt(NbtCompound nbt) {
         super.writeNbt(nbt);
         nbt.put(GasCell.NBT_KEY, gasStateCell.serialize());
-//        nbt.put(NBT_EXTENSION, extension);
     }
 
     @Nullable
@@ -180,7 +169,7 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
     }
 
     @Override
-    public PhysicalConnection.ConnectionType getConnectionType(Direction dir) {
+    public PhysicalConnection.@NotNull ConnectionType getConnectionType(Direction dir) {
         return dir == Direction.SOUTH ? PhysicalConnection.ConnectionType.LINEAR : PhysicalConnection.ConnectionType.NONE;
     }
 
@@ -195,12 +184,6 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
     public Constraint[] internalConstraints() {
         return new Constraint[] { linearConstraint };
     }
-
-//    @Override
-//    public void setExternalConstraint(@NotNull Direction dir, @Nullable Constraint constraint) {
-//        if(dir == Direction.SOUTH)
-//            externalConstraint = constraint;
-//    }
 
     @Override
     public String[] debugInfo() {

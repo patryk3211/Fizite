@@ -42,6 +42,7 @@ public class PipeEntity extends BlockEntity implements IGasCellProvider {
         }
     }
 
+    @SuppressWarnings("unused")
     public static void serverTick(ServerWorld world, BlockPos pos, BlockState state, @NotNull PipeEntity blockEntity) {
         if(blockEntity.sideMask != blockEntity.prevSideMask) {
             // Update boundaries
