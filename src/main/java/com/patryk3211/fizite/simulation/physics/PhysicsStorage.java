@@ -248,7 +248,7 @@ public class PhysicsStorage extends PersistentState {
         processSides(provider, entity);
 
         // Notify clients of a new physical entity
-        Networking.entityAdded(entity.getPos(), provider);
+        Networking.physicsAdded(entity.getPos(), provider);
     }
 
     public void addStepHandler(IPhysicsStepHandler handler) {
@@ -453,7 +453,6 @@ public class PhysicsStorage extends PersistentState {
             final var packet = sim.makeSyncPacket();
             Networking.CHANNEL.serverHandle(players).send(packet);
         });
-        Networking.cleanupList();
     }
 
     public static void clearSimulations() {

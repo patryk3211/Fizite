@@ -140,4 +140,8 @@ public class ClientPhysicsStorage extends PhysicsStorage {
     public static void onBlockEntityUnload(BlockEntity entity, ClientWorld world) {
         physics.clearPosition(entity.getPos());
     }
+
+    public void postUpdate() {
+        simulation.fireStepHandler();
+    }
 }

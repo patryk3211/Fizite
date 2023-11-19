@@ -12,8 +12,8 @@ import java.util.*;
 
 public class PhysicsWorld {
     // Default parameters
-    public static final double DELTA_TIME = Simulator.TICK_RATE; //1.0f / 20.0f;
-    public static final int STEPS = 150;
+    public static final double DELTA_TIME = 1.0f / 20.0f;
+    public static final int STEPS = 100;
 
     private final double deltaTime;
     private int steps;
@@ -94,6 +94,9 @@ public class PhysicsWorld {
         constraints.clear();
         forceGenerators.clear();
         stepHandlers.clear();
+        totalConstraintCount = 0;
+        bodyCount = 0;
+        parametersChanged = true;
     }
 
     public void addRigidBody(RigidBody body) {
@@ -281,6 +284,10 @@ public class PhysicsWorld {
         return steps;
     }
 
+    public void fireStepHandler() {
+        stepHandlers.forEach(handler -> handler.onStepEnd(0));
+    }
+
     // --------======== Debugging stuff ========--------
 
     private OutputStreamWriter writer = null;
@@ -289,7 +296,7 @@ public class PhysicsWorld {
 
     private static void dumpBody(OutputStreamWriter writer, RigidBody body) throws IOException {
         final var state = body.getState();
-        writer.write("Body" + body.index() + "\t");
+        writer.write("Body" + body.getMarker() + body.index() + "\t");
         writer.write(state.position.x + "," + state.position.y + "," + state.positionA + "\t");
         writer.write(state.velocity.x + "," + state.velocity.y + "," + state.velocityA + "\n");
         dumpVector(writer, body.index() + 100, state.position, state.extForce);

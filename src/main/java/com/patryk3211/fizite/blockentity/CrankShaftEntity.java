@@ -9,6 +9,7 @@ import com.patryk3211.fizite.simulation.physics.simulation.constraints.PositionC
 import com.patryk3211.fizite.utility.IDebugOutput;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
@@ -18,17 +19,23 @@ import org.joml.Vector2f;
 
 public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider, IDebugOutput {
     private static final Vector2f rotationAnchor = new Vector2f(0, 0);
-    private static final Vector2f xyAnchor = new Vector2f(0.5f, 0);
+    private static final Vector2f xyAnchor= new Vector2f(0.5f, 0);
 
     private final RigidBody body;
     private final Constraint positionConstraint;
+    private final Direction facing;
+    private final Direction.Axis rotationAxis;
 
     public CrankShaftEntity(BlockPos pos, BlockState state) {
         super(AllBlockEntities.CRANK_SHAFT_ENTITY, pos, state);
 
         body = new RigidBody();
         body.setMass(5);
+        body.setMarker("Shaft");
         positionConstraint = new PositionConstraint(body, 0, 0);
+
+        facing = state.get(Properties.HORIZONTAL_FACING);
+        rotationAxis = facing.rotateYClockwise().getAxis();
     }
 
     @Override
@@ -47,27 +54,27 @@ public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider, I
         return switch(getConnectionType(dir)) {
             case XY -> xyAnchor;
             case ROTATIONAL -> rotationAnchor;
-            case NONE -> null;
-            default -> throw new IllegalStateException("Unknown connection type");
+            default -> null;
         };
     }
 
     @Override
-    public PhysicalConnection.@NotNull ConnectionType getConnectionType(Direction dir) {
-        return switch(dir) {
-            case NORTH -> PhysicalConnection.ConnectionType.XY;
-            case EAST, WEST -> PhysicalConnection.ConnectionType.ROTATIONAL;
-            default -> PhysicalConnection.ConnectionType.NONE;
-        };
+    @NotNull
+    public PhysicalConnection.ConnectionType getConnectionType(Direction dir) {
+        if(dir == facing) return PhysicalConnection.ConnectionType.XY;
+        else if(dir.getAxis() == rotationAxis) return PhysicalConnection.ConnectionType.ROTATIONAL;
+        else return PhysicalConnection.ConnectionType.NONE;
     }
 
     @Override
-    public @NotNull RigidBody[] bodies() {
+    @NotNull
+    public RigidBody[] bodies() {
         return new RigidBody[] { body };
     }
 
     @Override
-    public @Nullable Constraint[] internalConstraints() {
+    @Nullable
+    public Constraint[] internalConstraints() {
         return new Constraint[] { positionConstraint };
     }
 

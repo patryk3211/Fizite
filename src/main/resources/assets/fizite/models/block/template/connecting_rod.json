@@ -2,8 +2,8 @@
 	"credit": "Made with Blockbench",
 	"elements": [
 		{
-			"from": [7, -1, -4],
-			"to": [9, 1, 4],
+			"from": [7, 7, 4],
+			"to": [9, 9, 12],
 			"color": 6,
 			"faces": {
 				"north": {"uv": [0, 0, 2, 2], "texture": "#missing"},
@@ -15,8 +15,8 @@
 			}
 		},
 		{
-			"from": [7, -2, 4],
-			"to": [9, 2, 8],
+			"from": [7, 6, 12],
+			"to": [9, 10, 16],
 			"color": 8,
 			"faces": {
 				"north": {"uv": [0, 0, 2, 4], "texture": "#missing"},
@@ -28,8 +28,8 @@
 			}
 		},
 		{
-			"from": [7, -2, -8],
-			"to": [9, 2, -4],
+			"from": [7, 6, 0],
+			"to": [9, 10, 4],
 			"color": 8,
 			"faces": {
 				"north": {"uv": [0, 0, 2, 4], "texture": "#missing"},

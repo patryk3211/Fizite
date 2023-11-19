@@ -8,6 +8,7 @@ import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import io.wispforest.owo.network.OwoNetChannel;
 import io.wispforest.owo.network.ServerAccess;
 import io.wispforest.owo.network.serialization.PacketBufSerializer;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -16,6 +17,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec2f;
 
 import java.util.*;
+import java.util.function.BiFunction;
 
 public class Networking {
     public static OwoNetChannel CHANNEL;
@@ -31,16 +33,58 @@ public class Networking {
     public record ServerRemoveGasSyncPosition(BlockPos position) { }
 
     private static class WaitListEntry {
-        public final Set<ServerPlayerEntity> players;
+        public static final int PHYSICS_FLAG = 1;
+        public static final int GAS_FLAG = 2;
+
+        public final Map<ServerPlayerEntity, Integer> players;
         public int cycles;
 
-        public WaitListEntry(ServerPlayerEntity player) {
-            this.players = new HashSet<>();
-            this.players.add(player);
+        public WaitListEntry(ServerPlayerEntity player, int flags) {
+            this.players = new HashMap<>();
+            this.players.put(player, flags);
             cycles = 0;
         }
     }
     private static final Map<BlockPos, WaitListEntry> waitingForEntity = new HashMap<>();
+
+    private static void setWaitFlag(BlockPos pos, ServerPlayerEntity player, int flags) {
+        var entry = waitingForEntity.get(pos);
+        if(entry == null) {
+            entry = new WaitListEntry(player, flags);
+            waitingForEntity.put(pos, entry);
+        } else {
+            entry.players.compute(player, (key, value) -> value == null ? flags : value | flags);
+        }
+    }
+
+    private static void clearWaitFlag(BlockPos pos, ServerPlayerEntity player, int flags) {
+        var entry = waitingForEntity.get(pos);
+        if(entry == null)
+            return;
+        var newVal = entry.players.computeIfPresent(player, (key, value) -> value & ~flags);
+        if(newVal == null) {
+            if(entry.players.isEmpty())
+                waitingForEntity.remove(pos);
+            return;
+        }
+        if(newVal == 0) {
+            entry.players.remove(player);
+            if(entry.players.isEmpty())
+                waitingForEntity.remove(pos);
+        }
+    }
+
+    private static void clearWaitFlag(BlockPos pos, int flags) {
+        var entry = waitingForEntity.get(pos);
+        if(entry == null)
+            return;
+        entry.players.keySet().removeIf(player -> {
+            var newVal = entry.players.computeIfPresent(player, (key, value) -> value & ~flags);
+            return newVal == null || newVal == 0;
+        });
+        if(entry.players.isEmpty())
+            waitingForEntity.remove(pos);
+    }
 
     public static void initialize() {
         CHANNEL = OwoNetChannel.create(new Identifier(Fizite.MOD_ID, "physics"));
@@ -96,7 +140,8 @@ public class Networking {
             return;
         final var entity = world.getBlockEntity(packet.position);
         if(entity == null) {
-            Fizite.LOGGER.warn("Requested gas sync position doesn't have an entity");
+            setWaitFlag(packet.position, access.player(), WaitListEntry.GAS_FLAG);
+//            Fizite.LOGGER.warn("Requested gas sync position doesn't have an entity");
             return;
         }
         if(entity instanceof final IGasCellProvider provider) {
@@ -115,11 +160,12 @@ public class Networking {
         }
         final var provider = PhysicsStorage.get(world).getProvider(packet.entityPosition);
         if(provider == null) {
-            if(waitingForEntity.containsKey(packet.entityPosition)) {
-                waitingForEntity.get(packet.entityPosition).players.add(access.player());
-            } else {
-                waitingForEntity.put(packet.entityPosition, new WaitListEntry(access.player()));
-            }
+            setWaitFlag(packet.entityPosition, access.player(), WaitListEntry.PHYSICS_FLAG);
+//            if(waitingForEntity.containsKey(packet.entityPosition)) {
+//                waitingForEntity.get(packet.entityPosition).players.add(access.player());
+//            } else {
+//                waitingForEntity.put(packet.entityPosition, new WaitListEntry(access.player(), WaitListEntry.PHYSICS_FLAG));
+//            }
             return;
         }
 
@@ -132,8 +178,8 @@ public class Networking {
         CHANNEL.serverHandle(access.player()).send(new ClientAddBlockEntity(packet.entityPosition, indices));
     }
 
-    public static void entityAdded(BlockPos pos, IPhysicsProvider provider) {
-        final var entry = waitingForEntity.remove(pos);
+    public static void physicsAdded(BlockPos pos, IPhysicsProvider provider) {
+        final var entry = waitingForEntity.get(pos);
         if(entry == null)
             return;
 
@@ -143,10 +189,34 @@ public class Networking {
             indices[i] = bodies[i].index();
         }
 
-        CHANNEL.serverHandle(entry.players).send(new ClientAddBlockEntity(pos, indices));
+        final var packet = new ClientAddBlockEntity(pos, indices);
+        entry.players.forEach((player, flags) -> {
+            if((flags & WaitListEntry.PHYSICS_FLAG) != 0)
+                CHANNEL.serverHandle(player).send(packet);
+        });
+        clearWaitFlag(pos, WaitListEntry.PHYSICS_FLAG);
     }
 
-    public static void cleanupList() {
+    public static void gasAdded(BlockPos pos, IGasCellProvider provider) {
+        final var entry = waitingForEntity.get(pos);
+        if(entry == null)
+            return;
+
+        entry.players.forEach((player, flags) -> {
+            if((flags & WaitListEntry.GAS_FLAG) != 0)
+                GasSimulator.addToSync(player, pos, provider);
+        });
+        clearWaitFlag(pos, WaitListEntry.GAS_FLAG);
+    }
+
+//    public static void entityAdded(BlockEntity entity) {
+//        if(entity instanceof final IPhysicsProvider provider)
+//            physicsAdded(entity.getPos(), provider);
+//        if(entity instanceof final IGasCellProvider provider)
+//            gasAdded(entity.getPos(), provider);
+//    }
+
+    public static void cleanupLists() {
         final Set<BlockPos> removePositions = new HashSet<>();
         waitingForEntity.forEach((pos, entry) -> {
             if(++entry.cycles >= 2) {
@@ -156,11 +226,11 @@ public class Networking {
         removePositions.forEach(pos -> {
             final var entry = waitingForEntity.remove(pos);
             StringBuilder playerListBuilder = new StringBuilder();
-            for(final var player : entry.players) {
+            for(final var player : entry.players.keySet()) {
                 playerListBuilder.append("'").append(player.getName()).append("', ");
             }
             final var playerList = playerListBuilder.delete(playerListBuilder.length() - 3, playerListBuilder.length() - 1).toString();
-            Fizite.LOGGER.warn("Players (" + playerList + ") have requested physics data for block entity at " + pos + ", but the entity was never created on the server");
+            Fizite.LOGGER.warn("Players (" + playerList + ") have requested data for block entity at " + pos + ", but the entity was never created on the server");
         });
     }
 }

@@ -1,5 +1,8 @@
 {
   "variants": {
-    "": { "model": "fizite:block/template/connecting_rod" }
+    "facing=north": { "model": "fizite:block/template/connecting_rod" },
+    "facing=south": { "model": "fizite:block/template/connecting_rod", "y": 180 },
+    "facing=east": { "model": "fizite:block/template/connecting_rod", "y": 90 },
+    "facing=west": { "model": "fizite:block/template/connecting_rod", "y": -90 }
   }
 }

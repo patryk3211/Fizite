@@ -111,5 +111,7 @@ public class ClientNetworking {
                 }
             }
         }
+
+        ClientPhysicsStorage.get().postUpdate();
     }
 }

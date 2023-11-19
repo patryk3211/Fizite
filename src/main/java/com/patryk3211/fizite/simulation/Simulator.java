@@ -14,6 +14,8 @@ public class Simulator {
     public record GasStepHandler(GasStorage boundaries) implements IPhysicsStepHandler {
         @Override
         public void onStepEnd(double deltaTime) {
+            if(deltaTime == 0)
+                return;
             boundaries.simulate(deltaTime);
         }
     }
@@ -83,6 +85,7 @@ public class Simulator {
                 tickCount = 0;
                 PhysicsStorage.syncStates(server);
                 GasSimulator.syncStates();
+                Networking.cleanupLists();
             }
         } catch (InterruptedException e) {
             Fizite.LOGGER.error(e.getMessage());

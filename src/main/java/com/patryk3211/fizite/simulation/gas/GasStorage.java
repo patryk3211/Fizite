@@ -1,6 +1,7 @@
 package com.patryk3211.fizite.simulation.gas;
 
 import com.patryk3211.fizite.Fizite;
+import com.patryk3211.fizite.simulation.Networking;
 import com.patryk3211.fizite.utility.DirectionUtilities;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.nbt.NbtCompound;
@@ -72,6 +73,9 @@ public class GasStorage extends PersistentState {
 
             addBoundary(entity.getPos(), dir, boundary);
         }
+
+        // Might add some clients to sync lists
+        Networking.gasAdded(entity.getPos(), baseProvider);
     }
 
     @NotNull

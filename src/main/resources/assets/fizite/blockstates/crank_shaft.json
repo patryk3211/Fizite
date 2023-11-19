@@ -1,6 +1,13 @@
 {
   "variants": {
-    "part=static": { "model": "fizite:block/template/crankshaft_body" },
-    "part=dynamic": { "model": "fizite:block/template/crankshaft_moving" }
+    "part=static,facing=north": { "model": "fizite:block/template/crankshaft_body" },
+    "part=static,facing=south": { "model": "fizite:block/template/crankshaft_body", "y": 180 },
+    "part=static,facing=east": { "model": "fizite:block/template/crankshaft_body", "y": 90 },
+    "part=static,facing=west": { "model": "fizite:block/template/crankshaft_body", "y": -90 },
+
+    "part=dynamic,facing=north": { "model": "fizite:block/template/crankshaft_moving" },
+    "part=dynamic,facing=south": { "model": "fizite:block/template/crankshaft_moving", "y": 180 },
+    "part=dynamic,facing=east": { "model": "fizite:block/template/crankshaft_moving", "y": 90 },
+    "part=dynamic,facing=west": { "model": "fizite:block/template/crankshaft_moving", "y": -90 }
   }
 }

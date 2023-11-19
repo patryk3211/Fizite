@@ -2,6 +2,7 @@ package com.patryk3211.fizite.renderer;
 
 import com.patryk3211.fizite.blockentity.HandCrankEntity;
 import com.patryk3211.fizite.simulation.ClientPhysicsStorage;
+import com.patryk3211.fizite.utility.DirectionUtilities;
 import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.block.BlockModelRenderer;
@@ -27,13 +28,12 @@ public class HandCrankRenderer implements BlockEntityRenderer<HandCrankEntity> {
         final var bakedModel = manager.getModel(state);
         final var body = entity.bodies()[0];
 
-        final var normal = state.get(Properties.FACING).getUnitVector();
-
         matrices.push();
         final var angle = ClientPhysicsStorage.get().lerpAngle(body, tickDelta);
 
         final var rot = new Quaternionf();
-        rot.setAngleAxis(angle, normal.x, normal.y, normal.z);
+        final var normal = DirectionUtilities.getAxisNormal(state.get(Properties.FACING).getAxis());
+        rot.setAngleAxis(angle, normal.x(), normal.y(), normal.z());
         matrices.multiply(rot, 0.5f, 0.5f, 0.5f);
 
         renderer.render(matrices.peek(), vertexConsumers.getBuffer(RenderLayers.getEntityBlockLayer(state, false)), state, bakedModel, 0, 0, 0, light, overlay);

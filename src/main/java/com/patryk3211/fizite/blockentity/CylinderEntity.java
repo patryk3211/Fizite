@@ -73,6 +73,7 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
         gasStateCell = new GasCell(volume);
 
         body = new RigidBody();
+        body.setMarker("Piston");
         linearConstraint = new LockYConstraint(body, 0);
 
         gasStateCell.set(20000, 5, new Vector3d());
@@ -169,7 +170,8 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
     }
 
     @Override
-    public PhysicalConnection.@NotNull ConnectionType getConnectionType(Direction dir) {
+    @NotNull
+    public PhysicalConnection.ConnectionType getConnectionType(Direction dir) {
         return dir == Direction.SOUTH ? PhysicalConnection.ConnectionType.LINEAR : PhysicalConnection.ConnectionType.NONE;
     }
 

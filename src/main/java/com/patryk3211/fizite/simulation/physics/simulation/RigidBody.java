@@ -7,6 +7,7 @@ public class RigidBody {
     private final PhysicalState state;
     private PhysicsWorld world;
     private int rbIndex;
+    private String marker;
 
     private final Vector2f restPosition;
     private float restAngle;
@@ -25,6 +26,15 @@ public class RigidBody {
         this.mass = 1;
         this.externalForceReset = false;
         this.restInitialized = false;
+        this.marker = "";
+    }
+
+    public void setMarker(String marker) {
+        this.marker = marker;
+    }
+
+    public String getMarker() {
+        return marker;
     }
 
     public float getMass() {

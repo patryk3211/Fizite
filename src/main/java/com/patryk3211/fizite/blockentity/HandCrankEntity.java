@@ -31,6 +31,7 @@ public class HandCrankEntity extends BlockEntity implements IPhysicsProvider {
         facing = state.get(Properties.FACING);
 
         body = new RigidBody();
+        body.setMarker("Shaft");
         body.externalForceReset = true;
         positionConstraint = new PositionConstraint(body, 0, 0);
     }
@@ -52,17 +53,20 @@ public class HandCrankEntity extends BlockEntity implements IPhysicsProvider {
     }
 
     @Override
-    public PhysicalConnection.@NotNull ConnectionType getConnectionType(Direction dir) {
+    @NotNull
+    public PhysicalConnection.ConnectionType getConnectionType(Direction dir) {
         return dir == facing ? PhysicalConnection.ConnectionType.ROTATIONAL : PhysicalConnection.ConnectionType.NONE;
     }
 
     @Override
-    public @NotNull RigidBody[] bodies() {
+    @NotNull
+    public RigidBody[] bodies() {
         return new RigidBody[] { body };
     }
 
     @Override
-    public @Nullable Constraint[] internalConstraints() {
+    @Nullable
+    public Constraint[] internalConstraints() {
         return new Constraint[] { positionConstraint };
     }
 }

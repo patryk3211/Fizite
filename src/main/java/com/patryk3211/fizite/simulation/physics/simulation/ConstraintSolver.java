@@ -123,8 +123,8 @@ public class ConstraintSolver {
         rMatrix = null;
     }
 
-    private static final double MAX_ERROR = 1E-5;
-    private static final double MIN_ERROR = 1E-6;
+    private static final double MAX_ERROR = 1E-4;
+    private static final double MIN_ERROR = 1E-5;
     private static final int MAX_ITERATIONS = 1024;
 
     private boolean checkError(DMatrixRMaj x, DMatrixRMaj right) {
