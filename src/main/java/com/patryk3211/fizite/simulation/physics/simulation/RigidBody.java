@@ -9,9 +9,9 @@ public class RigidBody {
     private int rbIndex;
     private String marker;
 
-    private final Vector2f restPosition;
-    private float restAngle;
-    private boolean restInitialized;
+//    private final Vector2f restPosition;
+//    private float restAngle;
+    private boolean initialized;
 
     private float mass;
 
@@ -19,13 +19,13 @@ public class RigidBody {
 
     public RigidBody() {
         this.state = new PhysicalState();
-        this.restPosition = new Vector2f();
-        this.restAngle = 0;
+//        this.restPosition = new Vector2f();
+//        this.restAngle = 0;
         this.rbIndex = -1;
         this.world = null;
         this.mass = 1;
         this.externalForceReset = false;
-        this.restInitialized = false;
+        this.initialized = false;
         this.marker = "";
     }
 
@@ -46,6 +46,10 @@ public class RigidBody {
         if(world != null) {
             world.updateMass(rbIndex, mass);
         }
+    }
+
+    public boolean isInitialized() {
+        return initialized;
     }
 
     public int index() {
@@ -72,28 +76,35 @@ public class RigidBody {
         return world;
     }
 
-    public void setRestPosition(float x, float y, float angle) {
-        if(!restInitialized) {
-            state.position.x = x;
-            state.position.y = y;
-            state.positionA = angle;
-            restInitialized = true;
-        } else {
-            // Offset current position by rest position change
-            state.position.x += x - restPosition.x;
-            state.position.y += y - restPosition.y;
-            state.positionA += angle - restAngle;
+    public void setInitialPosition(float x, float y, float angle) {
+//        System.out.println("Rest position is now unused");
+        if(!initialized) {
+            state.position.x += x;
+            state.position.y += y;
+            state.positionA += angle;
+            initialized = true;
         }
-        // Update rest position
-        this.restPosition.set(x, y);
-        this.restAngle = angle;
+//        if(!restInitialized) {
+//            state.position.x = x;
+//            state.position.y = y;
+//            state.positionA = angle;
+//            restInitialized = true;
+//        } else {
+//            // Offset current position by rest position change
+//            state.position.x += x - restPosition.x;
+//            state.position.y += y - restPosition.y;
+//            state.positionA += angle - restAngle;
+//        }
+//        // Update rest position
+//        this.restPosition.set(x, y);
+//        this.restAngle = angle;
     }
-
-    public Vector2f getRestPosition() {
-        return restPosition;
-    }
-
-    public float getRestAngle() {
-        return restAngle;
-    }
+//
+//    public Vector2f getRestPosition() {
+//        return restPosition;
+//    }
+//
+//    public float getRestAngle() {
+//        return restAngle;
+//    }
 }

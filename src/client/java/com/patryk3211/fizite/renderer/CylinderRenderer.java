@@ -21,11 +21,11 @@ public class CylinderRenderer implements BlockEntityRenderer<CylinderEntity> {
         final var state = entity.getCachedState().with(PneumaticCylinder.MODEL_PART_PROPERTY, PneumaticCylinder.ModelPart.PISTON);
         final var body = entity.bodies()[0];
 
-        final var p0 = body.getRestPosition().x;
+//        final var p0 = body.getRestPosition().x;
         final var p1 = ClientPhysicsStorage.get().lerpPos(body, tickDelta).x;
 
         matrices.push();
-        matrices.translate(0, 0, p0 - p1);
+        matrices.translate(0, 0, CylinderEntity.ORIGIN_X - p1);
         renderer.renderBlockAsEntity(state, matrices, vertexConsumers, light, overlay);
         matrices.pop();
     }

@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 public class ConstraintSolver {
-    private static final double K_D = 2;
-    private static final double K_S = 10;
+    private static final double K_D = 10; // Applied to C_dot
+    private static final double K_S = 10; // Applied to C
 
     private DMatrixRMaj qDot;
     private DMatrixSparseCSC J;
@@ -19,6 +19,7 @@ public class ConstraintSolver {
     private DMatrixRMaj W;
     private DMatrixRMaj C;
     private DMatrixRMaj CDot;
+    private DMatrixRMaj bodyLock;
 
     private DMatrixSparseCSC JT;
 
@@ -68,6 +69,16 @@ public class ConstraintSolver {
             W.set(row + 1, 0, 1.0 / body.getMass());
             // TODO: Change this to moment of inertia
             W.set(row + 2, 0, 1.0 / body.getMass());
+        }
+        bodyLock = new DMatrixRMaj(bodyCount * 3, 1);
+        for(final var body : rigidBodies) {
+            if(body == null)
+                continue;
+            final var row = body.index() * 3;
+            final var value = body.isInitialized() ? 0 : 1;
+            bodyLock.set(row, 0, value);
+            bodyLock.set(row + 1, 0, value);
+            bodyLock.set(row + 2, 0, value);
         }
 
         // Create matrices with new sizes
@@ -121,6 +132,8 @@ public class ConstraintSolver {
 
         pMatrix = null;
         rMatrix = null;
+
+        bodyLock = null;
     }
 
     private static final double MAX_ERROR = 1E-4;
@@ -148,6 +161,7 @@ public class ConstraintSolver {
 
     private void makeLeftMassless(DMatrixRMaj x, DMatrixRMaj output) {
         CommonOps_DSCC.mult(JT, x, denseReg1BC);
+//        CommonOps_DDRM.elementMult(denseReg1BC, bodyLock);
         CommonOps_DSCC.mult(J, denseReg1BC, output);
     }
 
@@ -276,18 +290,37 @@ public class ConstraintSolver {
 
     public void restPositions() {
         int constraintIndex = 0;
-        for (final var constraint : constraints) {
-            constraint.restMatrix(constraintIndex, C, J);
+        for(final var constraint : constraints) {
+            constraint.calculate(constraintIndex, C, J, JDot);
+//            constraint.restMatrix(constraintIndex, C, J);
             constraintIndex += constraint.internalConstraintCount();
         }
 
+        // In this case the qDot matrix is actually just the q,
+        // it stores the bodies positions.
+        for(final var body : rigidBodies) {
+            if(body == null)
+                continue;
+            final var row = body.index() * 3;
+            final var state = body.getState();
+
+            qDot.unsafe_set(row, 0, state.position.x);
+            qDot.unsafe_set(row + 1, 0, state.position.y);
+            qDot.unsafe_set(row + 2, 0, state.positionA);
+        }
+        CommonOps_DSCC.transpose(J, JT, null);
+
         // Equation:
-        // J * J_T * lambda = -C
+        // J * bodyLock * J_T * lambda = -J * qRest * (J * bodyLock) - C
+
         // [-J * qRest - C], gets simplified to -C because qRest = 0,
         // it might be useful if I want to calculate the rest positions in steps
-        CommonOps_DDRM.changeSign(C, right);
+        CommonOps_DSCC.mult(J, qDot, right);
+//        CommonOps_DSCC.mult(J, bodyLock, denseReg1CC);
+//        CommonOps_DDRM.elementMult(right, denseReg1CC);
+        CommonOps_DDRM.addEquals(right, C);
+        CommonOps_DDRM.changeSign(right);
 
-        CommonOps_DSCC.transpose(J, JT, null);
         if (solve(this::makeLeftMassless)) {
             System.out.println("Failed to solve");
         }
@@ -298,7 +331,7 @@ public class ConstraintSolver {
                 continue;
             final var row = body.index() * 3;
 
-            body.setRestPosition(
+            body.setInitialPosition(
                     (float) cForce.get(row, 0),
                     (float) cForce.get(row + 1, 0),
                     (float) cForce.get(row + 2, 0)

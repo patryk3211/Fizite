@@ -31,6 +31,12 @@ public abstract class Constraint {
      */
     public abstract void restMatrix(int index, DMatrixRMaj C, DMatrixSparseCSC J);
 
+    /**
+     * Forces the position of a given body to one that satisfies this constraint.
+     * @param index Index of body between 0 and constraint's body count
+     */
+    public abstract void setBodyPosition(int index);
+
     public int internalConstraintCount() {
         return constraintCount;
     }

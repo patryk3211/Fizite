@@ -19,7 +19,8 @@ import org.joml.Vector2f;
 
 public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider, IDebugOutput {
     private static final Vector2f rotationAnchor = new Vector2f(0, 0);
-    private static final Vector2f xyAnchor= new Vector2f(0.5f, 0);
+    private static final Vector2f xyAnchorPositive = new Vector2f(0.5f, 0);
+    private static final Vector2f xyAnchorNegative = new Vector2f(-0.5f, 0);
 
     private final RigidBody body;
     private final Constraint positionConstraint;
@@ -52,7 +53,7 @@ public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider, I
     @Override
     public Vector2f getAnchor(Direction dir) {
         return switch(getConnectionType(dir)) {
-            case XY -> xyAnchor;
+            case XY -> dir == facing ? xyAnchorPositive : xyAnchorNegative;
             case ROTATIONAL -> rotationAnchor;
             default -> null;
         };
@@ -61,7 +62,7 @@ public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider, I
     @Override
     @NotNull
     public PhysicalConnection.ConnectionType getConnectionType(Direction dir) {
-        if(dir == facing) return PhysicalConnection.ConnectionType.XY;
+        if(dir == facing || dir == facing.getOpposite()) return PhysicalConnection.ConnectionType.XY;
         else if(dir.getAxis() == rotationAxis) return PhysicalConnection.ConnectionType.ROTATIONAL;
         else return PhysicalConnection.ConnectionType.NONE;
     }

@@ -13,7 +13,7 @@ import com.patryk3211.fizite.simulation.gas.GasStorage;
 import com.patryk3211.fizite.simulation.gas.IGasCellProvider;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.Constraint;
-import com.patryk3211.fizite.simulation.physics.simulation.constraints.LockYConstraint;
+import com.patryk3211.fizite.simulation.physics.simulation.constraints.PistonConstraint;
 import com.patryk3211.fizite.utility.IDebugOutput;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
@@ -31,6 +31,7 @@ import org.joml.Vector3d;
 
 public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPhysicsProvider, IDebugOutput, IPhysicsStepHandler, IForceGenerator {
     private static final Vector2f PISTON_ANCHOR = new Vector2f(-0.5f, 0);
+    public static final float ORIGIN_X = 2.0f;
 
     // TODO: Temporary values, may change later
     private static final float STATIC_FRICTION_COEFFICIENT = 0.5f;
@@ -74,7 +75,8 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
 
         body = new RigidBody();
         body.setMarker("Piston");
-        linearConstraint = new LockYConstraint(body, 0);
+        body.getState().position.x = ORIGIN_X;
+        linearConstraint = new PistonConstraint(body, 0, 2);
 
         gasStateCell.set(20000, 5, new Vector3d());
     }
@@ -87,10 +89,10 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
     }
 
     private float calculateVolume() {
-        final var restPos = body.getRestPosition().x;
+//        final var restPos = body.getRestPosition();
         final var currentPos = body.getState().position.x;
-        final var chamberLength = restPos - currentPos;
-        return (float) (tdcVolume + chamberLength * pistonArea);
+        final var chamberLength = ORIGIN_X - currentPos;
+        return (float) (tdcVolume + Math.max(chamberLength * pistonArea, 0));
     }
 
     private static double calculateFriction(double velocity) {
@@ -189,11 +191,11 @@ public class CylinderEntity extends BlockEntity implements IGasCellProvider, IPh
 
     @Override
     public String[] debugInfo() {
-        final var rbOrigin = body.getRestPosition();
+//        final var rbOrigin = body.getRestPosition();
         final var rbPos = body.getState().position;
         final var rbVel = body.getState().velocity;
         return new String[] {
-                String.format("Origin = (%.3e, %.3e)", rbOrigin.x, rbOrigin.y),
+//                String.format("Origin = (%.3e, %.3e)", rbOrigin.x, rbOrigin.y),
                 String.format("Position = (%.3e, %.3e)", rbPos.x, rbPos.y),
                 String.format("Velocity = (%.3e, %.3e)", rbVel.x, rbVel.y),
                 String.format("Pressure = %.1f Pa", gasStateCell.pressure()),

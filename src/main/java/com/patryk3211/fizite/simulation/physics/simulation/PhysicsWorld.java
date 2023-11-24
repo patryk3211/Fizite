@@ -184,7 +184,7 @@ public class PhysicsWorld {
         if(parametersChanged) {
             constraintSolver.resizeMatrices(totalConstraintCount);
             parametersChanged = false;
-            restPositions();
+//            restPositions();
         }
 
         physicsSolver.start(stepTime, system);

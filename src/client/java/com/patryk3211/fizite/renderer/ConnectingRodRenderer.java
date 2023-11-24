@@ -11,6 +11,7 @@ import net.minecraft.client.render.block.entity.BlockEntityRenderer;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.Direction;
 import org.joml.Quaternionf;
 
 public class ConnectingRodRenderer implements BlockEntityRenderer<ConnectingRodEntity> {
@@ -28,45 +29,32 @@ public class ConnectingRodRenderer implements BlockEntityRenderer<ConnectingRodE
         final var bakedModel = manager.getModel(state);
         final var body = entity.bodies()[0];
 
-        final var facing = state.get(Properties.HORIZONTAL_FACING).rotateYCounterclockwise();//DirectionUtilities.perpendicular(state.get(Properties.HORIZONTAL_FACING));
-        final var rotationNormal = facing.getUnitVector();//DirectionUtilities.getAxisNormal(facing.getAxis());
+        final var facing = state.get(Properties.HORIZONTAL_FACING).rotateYCounterclockwise();
+        final var axisDir = facing.getDirection();
+        final var rotationNormal = facing.getUnitVector();
 
         matrices.push();
-        final var p0 = body.getRestPosition();
         final var p1 = ClientPhysicsStorage.get().lerpPos(body, tickDelta);
-        final var relativeX = p0.x - p1.x;
-        final var relativeY = p0.y - p1.y;
+
+        var posY = -p1.y;
+        var angle = ClientPhysicsStorage.get().lerpAngle(body, tickDelta);
+        if(axisDir == Direction.AxisDirection.NEGATIVE) {
+            posY = -posY;
+            angle = -angle;
+        }
+
+        final var posX = ConnectingRodEntity.ORIGIN_X - p1.x;
+        double x = 0, z = 0;
+        switch (facing) {
+            case EAST ->  z = -posX;
+            case WEST ->  z =  posX;
+            case SOUTH -> x =  posX;
+            case NORTH -> x = -posX;
+        }
 
         final var rot = new Quaternionf();
-        final var a0 = body.getRestAngle();
-        final var angle = ClientPhysicsStorage.get().lerpAngle(body, tickDelta);
-        final var relativeA = a0 - angle;
-
-        double x = 0, y = 0, z = 0, a = 0;
-        switch (facing) {
-            case EAST -> {
-                a = -relativeA;
-                y =  relativeY;
-                z = -relativeX;
-            }
-            case WEST -> {
-                a =  relativeA;
-                y = -relativeY;
-                z =  relativeX;
-            }
-            case SOUTH -> {
-                a = -relativeA;
-                y =  relativeY;
-                x =  relativeX;
-            }
-            case NORTH -> {
-                a =  relativeA;
-                y = -relativeY;
-                x = -relativeX;
-            }
-        }
-        rot.setAngleAxis(a, rotationNormal.x(), rotationNormal.y(), rotationNormal.z());
-        matrices.translate(x, y, z);
+        rot.setAngleAxis(angle, rotationNormal.x(), rotationNormal.y(), rotationNormal.z());
+        matrices.translate(x, posY, z);
         matrices.multiply(rot, 0.5f, 0.5f, 0.5f);
 
         renderer.render(matrices.peek(), vertexConsumers.getBuffer(RenderLayers.getEntityBlockLayer(state, false)), state, bakedModel, 0, 0, 0, light, overlay);

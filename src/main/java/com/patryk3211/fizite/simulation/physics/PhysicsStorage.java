@@ -35,15 +35,15 @@ public class PhysicsStorage extends PersistentState {
     public static final Type<PhysicsStorage> TYPE = new Type<>(PhysicsStorage::new, PhysicsStorage::new, null);
 
     /* Nbt stuff for saving the simulation */
-    private record RigidBodyData(Vector3d position, Vector3d velocity, Vector3f restPosition) {
+    private record RigidBodyData(Vector3d position, Vector3d velocity) {
         public static RigidBodyData decode(NbtCompound data) {
             final var posNbt = data.getList("p", NbtElement.DOUBLE_TYPE);
             final var position = new Vector3d(posNbt.getDouble(0), posNbt.getDouble(1), posNbt.getDouble(2));
             final var velNbt = data.getList("v", NbtElement.DOUBLE_TYPE);
             final var velocity = new Vector3d(velNbt.getDouble(0), velNbt.getDouble(1), velNbt.getDouble(2));
-            final var restNbt = data.getList("p0", NbtElement.FLOAT_TYPE);
-            final var restPosition = new Vector3f(restNbt.getFloat(0), restNbt.getFloat(1), restNbt.getFloat(2));
-            return new RigidBodyData(position, velocity, restPosition);
+//            final var restNbt = data.getList("p0", NbtElement.FLOAT_TYPE);
+//            final var restPosition = new Vector3f(restNbt.getFloat(0), restNbt.getFloat(1), restNbt.getFloat(2));
+            return new RigidBodyData(position, velocity);
         }
 
         public static NbtCompound encode(RigidBodyData rigidBodyData) {
@@ -58,11 +58,11 @@ public class PhysicsStorage extends PersistentState {
             velNbt.add(NbtDouble.of(rigidBodyData.velocity.y));
             velNbt.add(NbtDouble.of(rigidBodyData.velocity.z));
             data.put("v", velNbt);
-            final var restNbt = new NbtList();
-            restNbt.add(NbtFloat.of(rigidBodyData.restPosition.x));
-            restNbt.add(NbtFloat.of(rigidBodyData.restPosition.y));
-            restNbt.add(NbtFloat.of(rigidBodyData.restPosition.z));
-            data.put("p0", restNbt);
+//            final var restNbt = new NbtList();
+//            restNbt.add(NbtFloat.of(rigidBodyData.restPosition.x));
+//            restNbt.add(NbtFloat.of(rigidBodyData.restPosition.y));
+//            restNbt.add(NbtFloat.of(rigidBodyData.restPosition.z));
+//            data.put("p0", restNbt);
             return data;
         }
     }
@@ -194,6 +194,10 @@ public class PhysicsStorage extends PersistentState {
             if(constraint != null) {
                 // Can connect to this provider
                 addConstraint(constraint, entity.getPos(), dir);
+                // TODO: Make sure this doesn't get called twice for a single body cause some funky stuff might happen.
+                // Constraint body index 0 is always the base entity's body, because of the way
+                // that the constraint is created. See `PhysicalConnection::makeConnection`
+                constraint.setBodyPosition(0);
 
                 provider.setExternalConstraint(dir, constraint);
                 neighbor.setExternalConstraint(dir.getOpposite(), constraint);
@@ -228,7 +232,7 @@ public class PhysicsStorage extends PersistentState {
             if(savedState != null) {
                 // Set body state to save state for every body
                 final var state = savedState[index++];
-                body.setRestPosition(state.restPosition.x, state.restPosition.y, state.restPosition.z);
+//                body.setRestPosition(state.restPosition.x, state.restPosition.y, state.restPosition.z);
                 final var bodyState = body.getState();
                 bodyState.position.x = state.position.x;
                 bodyState.position.y = state.position.y;
@@ -350,8 +354,8 @@ public class PhysicsStorage extends PersistentState {
         final var state = body.getState();
         return new RigidBodyData(
                 new Vector3d(state.position.x, state.position.y, state.positionA),
-                new Vector3d(state.velocity.x, state.velocity.y, state.velocityA),
-                new Vector3f(body.getRestPosition().x, body.getRestPosition().y, body.getRestAngle())
+                new Vector3d(state.velocity.x, state.velocity.y, state.velocityA)
+//                new Vector3f(body.getRestPosition().x, body.getRestPosition().y, body.getRestAngle())
         );
     }
 
