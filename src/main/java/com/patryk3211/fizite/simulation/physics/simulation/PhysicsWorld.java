@@ -176,8 +176,8 @@ public class PhysicsWorld {
     }
 
     public void simulate() {
-        if(bodyCount == 0)
-            return;
+//        if(bodyCount == 0)
+//            return;
         totalTime = -System.nanoTime();
 
         startTime = -System.nanoTime();
@@ -192,29 +192,31 @@ public class PhysicsWorld {
 
         int debugFrame = 0;
         for(int i = 0; i < steps; ++i) {
-            do {
-                // Physics part I
-                physicsStepTime[debugFrame] = -System.nanoTime();
-                physicsSolver.step();
-                physicsStepTime[debugFrame] += System.nanoTime();
+            if(bodyCount != 0) {
+                do {
+                    // Physics part I
+                    physicsStepTime[debugFrame] = -System.nanoTime();
+                    physicsSolver.step();
+                    physicsStepTime[debugFrame] += System.nanoTime();
 
-                // Generate external forces
-                forceGeneratorTime[debugFrame] = -System.nanoTime();
-                forceGenerators.forEach(g -> g.apply(stepTime));
-                forceGeneratorTime[debugFrame] += System.nanoTime();
+                    // Generate external forces
+                    forceGeneratorTime[debugFrame] = -System.nanoTime();
+                    forceGenerators.forEach(g -> g.apply(stepTime));
+                    forceGeneratorTime[debugFrame] += System.nanoTime();
 
-                // Calculate constraint forces
-                constraintSolveTime[debugFrame] = -System.nanoTime();
-                if (totalConstraintCount != 0)
-                    constraintSolver.step();
-                constraintSolveTime[debugFrame] += System.nanoTime();
+                    // Calculate constraint forces
+                    constraintSolveTime[debugFrame] = -System.nanoTime();
+                    if (totalConstraintCount != 0)
+                        constraintSolver.step();
+                    constraintSolveTime[debugFrame] += System.nanoTime();
 
-                // Physics part II
-                physicsSolveTime[debugFrame] = -System.nanoTime();
-                physicsSolver.solve();
-                physicsSolveTime[debugFrame] += System.nanoTime();
-                ++debugFrame;
-            } while(!physicsSolver.stepFinished());
+                    // Physics part II
+                    physicsSolveTime[debugFrame] = -System.nanoTime();
+                    physicsSolver.solve();
+                    physicsSolveTime[debugFrame] += System.nanoTime();
+                    ++debugFrame;
+                } while (!physicsSolver.stepFinished());
+            }
 
             // Post-step
             stepHandlersTime[i] = -System.nanoTime();

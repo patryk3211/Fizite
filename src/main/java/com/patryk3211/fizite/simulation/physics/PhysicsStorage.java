@@ -252,7 +252,7 @@ public class PhysicsStorage extends PersistentState {
         processSides(provider, entity);
 
         // Notify clients of a new physical entity
-        Networking.physicsAdded(entity.getPos(), provider);
+        Networking.physicsAdded(entity.getWorld().getRegistryKey(), entity.getPos(), provider);
     }
 
     public void addStepHandler(IPhysicsStepHandler handler) {

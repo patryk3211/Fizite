@@ -2,9 +2,12 @@ package com.patryk3211.fizite.simulation;
 
 import com.patryk3211.fizite.Fizite;
 import com.patryk3211.fizite.simulation.gas.GasStorage;
+import com.patryk3211.fizite.simulation.gas.IGasCellProvider;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public class ClientGasStorage extends GasStorage {
     private static ClientGasStorage gas;
@@ -26,8 +29,26 @@ public class ClientGasStorage extends GasStorage {
     }
 
     @Override
-    public void removeBoundaries(BlockPos pos) {
-        super.removeBoundaries(pos);
+    public void addGasProviderProcessSides(RegistryKey<World> world, BlockPos pos, IGasCellProvider provider) {
+        super.addGasProviderProcessSides(world, pos, provider);
+        ClientNetworking.addToGasSync(pos, world);
+    }
+
+    @Override
+    public void clearPosition(BlockPos pos) {
+        super.clearPosition(pos);
+        ClientNetworking.removeFromGasSync(pos);
+    }
+
+    @Override
+    public void addGasProvider(RegistryKey<World> world, BlockPos pos, IGasCellProvider provider) {
+        super.addGasProvider(world, pos, provider);
+        ClientNetworking.addToGasSync(pos, world);
+    }
+
+    @Override
+    public void removeGasProvider(RegistryKey<World> world, BlockPos pos) {
+        super.removeGasProvider(world, pos);
         ClientNetworking.removeFromGasSync(pos);
     }
 
@@ -38,6 +59,6 @@ public class ClientGasStorage extends GasStorage {
     }
 
     public static void onBlockEntityUnload(BlockEntity entity, ClientWorld world) {
-        GasStorage.clientStorage.removeBoundaries(entity.getPos());
+        GasStorage.clientStorage.clearPosition(entity.getPos());
     }
 }

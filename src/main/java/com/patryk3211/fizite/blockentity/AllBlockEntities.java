@@ -8,7 +8,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 public class AllBlockEntities implements AutoRegistryContainer<BlockEntityType<?>> {
-    public static final BlockEntityType<PipeEntity> PIPE_ENTITY = FabricBlockEntityTypeBuilder.create(PipeEntity::new, AllBlocks.COPPER_PIPE).build();
+//    public static final BlockEntityType<PipeEntity> PIPE_ENTITY = FabricBlockEntityTypeBuilder.create(PipeEntity::new, AllBlocks.COPPER_PIPE).build();
 
     public static final BlockEntityType<CylinderEntity> CYLINDER_ENTITY = FabricBlockEntityTypeBuilder.create(CylinderEntity::new, AllBlocks.COPPER_CYLINDER).build();
 
@@ -17,6 +17,8 @@ public class AllBlockEntities implements AutoRegistryContainer<BlockEntityType<?
     public static final BlockEntityType<CrankShaftEntity> CRANK_SHAFT_ENTITY = FabricBlockEntityTypeBuilder.create(CrankShaftEntity::new, AllBlocks.CRANK_SHAFT).build();
 
     public static final BlockEntityType<HandCrankEntity> HAND_CRANK_ENTITY = FabricBlockEntityTypeBuilder.create(HandCrankEntity::new, AllBlocks.HAND_CRANK).build();
+
+    public static final BlockEntityType<CapabilityPipeEntity> PIPE_ENTITY = CapabilityPipeEntity.TEMPLATE.bake();
 
     @Override
     public Registry<BlockEntityType<?>> getRegistry() {

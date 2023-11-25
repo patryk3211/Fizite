@@ -70,7 +70,7 @@ public abstract class PneumaticCylinder extends ModdedBlock implements BlockEnti
     protected void onBlockRemoved(BlockState state, World world, BlockPos pos) {
         if(world instanceof final ServerWorld serverWorld) {
             final GasStorage boundaries = GasStorage.get(serverWorld);
-            boundaries.removeBoundaries(pos);
+            boundaries.clearPosition(pos);
         }
         PhysicsStorage.get(world).clearPosition(pos);
     }

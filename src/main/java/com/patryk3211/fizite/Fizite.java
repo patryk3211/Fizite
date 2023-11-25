@@ -2,6 +2,7 @@ package com.patryk3211.fizite;
 
 import com.patryk3211.fizite.block.AllBlocks;
 import com.patryk3211.fizite.blockentity.AllBlockEntities;
+import com.patryk3211.fizite.capability.CapabilitiesBlockEntity;
 import com.patryk3211.fizite.item.AllItems;
 import com.patryk3211.fizite.simulation.Simulator;
 import com.patryk3211.fizite.simulation.Networking;
@@ -11,9 +12,10 @@ import io.wispforest.owo.registration.reflect.FieldRegistrationHandler;
 import net.fabricmc.api.ModInitializer;
 
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.*;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +40,11 @@ public class Fizite implements ModInitializer {
 
 		ServerLifecycleEvents.SERVER_STARTING.register(server -> Simulator.initializeWorker());
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> Simulator.stopWorker());
+
+		ServerBlockEntityEvents.BLOCK_ENTITY_UNLOAD.register((entity, world) -> {
+            if(entity instanceof final CapabilitiesBlockEntity capEntity)
+				capEntity.onUnload();
+        });
 
 		CommandRegistrationCallback.EVENT.register(DebugCommands::registerDebugCommands);
 

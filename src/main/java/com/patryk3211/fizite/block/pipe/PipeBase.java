@@ -1,7 +1,7 @@
 package com.patryk3211.fizite.block.pipe;
 
 import com.patryk3211.fizite.block.ModdedBlock;
-import com.patryk3211.fizite.blockentity.PipeEntity;
+import com.patryk3211.fizite.blockentity.CapabilityPipeEntity;
 import com.patryk3211.fizite.simulation.gas.GasStorage;
 import com.patryk3211.fizite.simulation.gas.IGasCellProvider;
 import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
@@ -9,8 +9,6 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.block.entity.BlockEntityTicker;
-import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.StateManager;
@@ -18,7 +16,6 @@ import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public abstract class PipeBase extends ModdedBlock implements BlockEntityProvider {
@@ -77,26 +74,26 @@ public abstract class PipeBase extends ModdedBlock implements BlockEntityProvide
     @Nullable
     @Override
     public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-        return new PipeEntity(pos, state);
+        return CapabilityPipeEntity.TEMPLATE.create(pos, state); //new PipeEntity(pos, state);
     }
 
-    @Nullable
-    @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(@NotNull World world, BlockState state, BlockEntityType<T> type) {
-        return world.isClient ?
-            null : // Client ticker
-            (w, p, s, t) -> { // Server ticker
-                if(!(t instanceof PipeEntity))
-                    throw new IllegalStateException("Pipe ticker called for non pipe entity");
-                PipeEntity.serverTick((ServerWorld) w, p, s, (PipeEntity) t);
-            };
-    }
+//    @Nullable
+//    @Override
+//    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(@NotNull World world, BlockState state, BlockEntityType<T> type) {
+//        return world.isClient ?
+//            null : // Client ticker
+//            (w, p, s, t) -> { // Server ticker
+//                if(!(t instanceof PipeEntity))
+//                    throw new IllegalStateException("Pipe ticker called for non pipe entity");
+//                PipeEntity.serverTick((ServerWorld) w, p, s, (PipeEntity) t);
+//            };
+//    }
 
     @Override
     protected void onBlockRemoved(BlockState state, World world, BlockPos pos) {
         if(world instanceof final ServerWorld serverWorld) {
             final GasStorage boundaries = GasStorage.get(serverWorld);
-            boundaries.removeBoundaries(pos);
+            boundaries.clearPosition(pos);
         }
     }
 

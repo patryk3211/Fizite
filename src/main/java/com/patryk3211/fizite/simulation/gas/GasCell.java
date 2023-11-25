@@ -108,6 +108,10 @@ public class GasCell {
         return kineticEnergy;
     }
 
+    public void setMoleculeKineticEnergy(double energy) {
+        kineticEnergy = energy;
+    }
+
     public double getTotalMoles() {
         return totalMoles;
     }

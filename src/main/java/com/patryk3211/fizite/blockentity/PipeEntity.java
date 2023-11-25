@@ -23,7 +23,8 @@ public class PipeEntity extends BlockEntity implements IGasCellProvider {
     private int prevSideMask;
 
     public PipeEntity(BlockPos pos, BlockState state) {
-        super(AllBlockEntities.PIPE_ENTITY, pos, state);
+        super(null, pos, state);
+//        super(AllBlockEntities.PIPE_ENTITY, pos, state);
         assert state.getBlock() instanceof PipeBase : "A Block using PipeEntity must be an instance of PipeBase";
 
         final float volume = ((PipeBase) state.getBlock()).getVolume();

@@ -1,9 +1,11 @@
 package com.patryk3211.fizite.simulation.gas;
 
 import com.patryk3211.fizite.simulation.Networking;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Vector3d;
 
@@ -37,6 +39,13 @@ public class GasSimulator {
         var cells = playerSyncStates.get(player);
         if(cells != null)
             cells.remove(pos);
+    }
+
+    public static void removeFromSync(RegistryKey<World> world, BlockPos pos) {
+        playerSyncStates.forEach((player, syncStates) -> {
+            if(player.getServerWorld().getRegistryKey().equals(world))
+                syncStates.remove(pos);
+        });
     }
 
     public static void syncStates() {
@@ -187,5 +196,10 @@ public class GasSimulator {
 
             sink.changeEnergy(-(v1Sum - v0Sum) / (2 * sinkMass));
         }
+
+        if(source.getMoleculeKineticEnergy() < 0)
+            source.setMoleculeKineticEnergy(0);
+        if(sink.getMoleculeKineticEnergy() < 0)
+            sink.setMoleculeKineticEnergy(0);
     }
 }
