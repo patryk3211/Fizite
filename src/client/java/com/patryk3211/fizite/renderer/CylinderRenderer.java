@@ -1,14 +1,13 @@
 package com.patryk3211.fizite.renderer;
 
 import com.patryk3211.fizite.block.cylinder.PneumaticCylinder;
-import com.patryk3211.fizite.blockentity.CylinderEntity;
 import com.patryk3211.fizite.simulation.ClientPhysicsStorage;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.block.BlockRenderManager;
 import net.minecraft.client.render.block.entity.BlockEntityRenderer;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
 import net.minecraft.client.util.math.MatrixStack;
-
+/*
 public class CylinderRenderer implements BlockEntityRenderer<CylinderEntity> {
     private final BlockRenderManager renderer;
 
@@ -30,3 +29,4 @@ public class CylinderRenderer implements BlockEntityRenderer<CylinderEntity> {
         matrices.pop();
     }
 }
+*/

@@ -18,51 +18,6 @@ public class GasSimulator {
     public static final double CHOKED_FLOW_RATIO = Math.sqrt(HEAT_CAPACITY_RATIO) * Math.pow(2 / (HEAT_CAPACITY_RATIO + 1), (HEAT_CAPACITY_RATIO + 1) / (2 * (HEAT_CAPACITY_RATIO - 1)));
     public static final double ATMOSPHERIC_PRESSURE = 101325; // Assume atmospheric pressure of 1013.25hPa
 
-    private static final Map<ServerPlayerEntity, Map<BlockPos, IGasCellProvider>> playerSyncStates = new HashMap<>();
-
-    public static GasStorage addToWorld(ServerWorld world) {
-        final var storage = new GasStorage();
-        world.getPersistentStateManager().set(GasStorage.STORAGE_ID, storage);
-        return storage;
-    }
-
-    public static void clearSync() {
-        playerSyncStates.clear();
-    }
-
-    public static void addToSync(ServerPlayerEntity player, BlockPos pos, IGasCellProvider provider) {
-        var cells = playerSyncStates.computeIfAbsent(player, k -> new HashMap<>());
-        cells.put(pos, provider);
-    }
-
-    public static void removeFromSync(ServerPlayerEntity player, BlockPos pos) {
-        var cells = playerSyncStates.get(player);
-        if(cells != null)
-            cells.remove(pos);
-    }
-
-    public static void removeFromSync(RegistryKey<World> world, BlockPos pos) {
-        playerSyncStates.forEach((player, syncStates) -> {
-            if(player.getServerWorld().getRegistryKey().equals(world))
-                syncStates.remove(pos);
-        });
-    }
-
-    public static void syncStates() {
-        playerSyncStates.forEach((player, syncStates) -> {
-            final List<Networking.GasState> packetData = new LinkedList<>();
-            syncStates.forEach((pos, cellProvider) -> {
-                for(int i = 0; i < cellProvider.getCellCount(); ++i) {
-                    final var cell = cellProvider.getCell(i);
-                    final var momentum = cell.getMomentum();
-                    packetData.add(new Networking.GasState(pos, i, cell.getMoleculeKineticEnergy(), cell.getTotalMoles(), momentum.x, momentum.y, momentum.z));
-                }
-            });
-            final var packet = new Networking.ClientSyncGasState(packetData.toArray(new Networking.GasState[0]));
-            Networking.CHANNEL.serverHandle(player).send(packet);
-        });
-    }
-
     // This method calculates the mass flow rate
     private static double flowRate(double p0, double p1, double t0) {
         assert p0 >= p1 : "Flow rate assumes p0 > p1, please make sure that's the case";

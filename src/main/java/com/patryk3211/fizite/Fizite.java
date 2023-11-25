@@ -39,7 +39,10 @@ public class Fizite implements ModInitializer {
 		ServerTickEvents.END_WORLD_TICK.register(PhysicsStorage::onWorldTickEnd);
 
 		ServerLifecycleEvents.SERVER_STARTING.register(server -> Simulator.initializeWorker());
-		ServerLifecycleEvents.SERVER_STOPPING.register(server -> Simulator.stopWorker());
+		ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+			Simulator.stopWorker();
+			Networking.clear();
+		});
 
 		ServerBlockEntityEvents.BLOCK_ENTITY_UNLOAD.register((entity, world) -> {
             if(entity instanceof final CapabilitiesBlockEntity capEntity)

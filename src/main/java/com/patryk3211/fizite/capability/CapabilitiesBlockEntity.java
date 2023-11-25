@@ -5,17 +5,16 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.server.world.ServerWorld;
+import net.minecraft.network.listener.ClientPlayPacketListener;
+import net.minecraft.network.packet.Packet;
+import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.world.World;
-import net.minecraft.world.chunk.ChunkStatus;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
-import java.util.function.IntFunction;
 
 public abstract class CapabilitiesBlockEntity extends BlockEntity implements IDebugOutput {
     private CapabilitiesBlockEntityTemplate<?> template;
@@ -24,34 +23,13 @@ public abstract class CapabilitiesBlockEntity extends BlockEntity implements IDe
     protected CapabilitiesBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
     }
-//    public static void getEntity(World world, BlockPos pos, Consumer<CapabilitiesBlockEntity> consumer) {
-//        if(world.isClient) {
-//            consumer.accept(getEntity(world, pos));
-//        } else {
-//            final var serverWorld = (ServerWorld) world;
-////            serverWorld.getChunkManager();
-//            //serverWorld.getChunkManager()//.getChunkFutureSyncOnMainThread()
-////            serverWorld.getServer()
-////            final var chunk = serverWorld.getChunkManager().addTicket();//getWorldChunk(ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getZ()));
-////            final var entity = chunk.getBlockEntity(pos);
-////            if(entity instanceof final CapabilitiesBlockEntity capEntity)
-////                consumer.accept(capEntity);
-//            final var future = serverWorld.getChunkManager().getChunkFutureSyncOnMainThread(ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getZ()), ChunkStatus.FULL, true);
-//            future.thenAccept(result -> {
-//                final var entity = result.orThrow().getBlockEntity(pos);
-//                if(entity instanceof final CapabilitiesBlockEntity capEntity)
-//                    consumer.accept(capEntity);
-//            });
-////            serverWorld.getChunk()
-//        }
-//    }
-//
-//    public static CapabilitiesBlockEntity getEntity(World world, BlockPos pos) {
-//        final var entity = world.getBlockEntity(pos);
-//        if(entity instanceof final CapabilitiesBlockEntity capEntity)
-//            return capEntity;
-//        return null;
-//    }
+
+    public static CapabilitiesBlockEntity getEntity(World world, BlockPos pos) {
+        final var entity = world.getBlockEntity(pos);
+        if(entity instanceof final CapabilitiesBlockEntity capEntity)
+            return capEntity;
+        return null;
+    }
 
     public final void setTemplate(CapabilitiesBlockEntityTemplate<?> template) {
         this.template = template;
@@ -103,12 +81,24 @@ public abstract class CapabilitiesBlockEntity extends BlockEntity implements IDe
         }
     }
 
+    @Nullable
+    @Override
+    public Packet<ClientPlayPacketListener> toUpdatePacket() {
+        return template.doInitialSync() ? BlockEntityUpdateS2CPacket.create(this) : null;
+    }
+
+    @Override
+    public NbtCompound toInitialChunkDataNbt() {
+        final var tag = new NbtCompound();
+        writeNbt(tag);
+        return tag;
+    }
+
     @Override
     public String[] debugInfo() {
         List<String> output = new LinkedList<>();
-        for (Capability capability : capabilities.values()) {
+        for (Capability capability : capabilities.values())
             capability.debugOutput(output);
-        }
         return output.toArray(new String[0]);
     }
 }

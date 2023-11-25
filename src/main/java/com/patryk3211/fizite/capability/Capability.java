@@ -28,6 +28,10 @@ public abstract class Capability {
         this.entity = entity;
     }
 
+    public int deriveSuperclasses() {
+        return 0;
+    }
+
     public void onLoad() {
 
     }

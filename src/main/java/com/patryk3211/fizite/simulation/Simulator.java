@@ -3,6 +3,7 @@ package com.patryk3211.fizite.simulation;
 import com.patryk3211.fizite.Fizite;
 import com.patryk3211.fizite.simulation.gas.GasSimulator;
 import com.patryk3211.fizite.simulation.gas.GasStorage;
+import com.patryk3211.fizite.simulation.gas.ServerGasStorage;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.simulation.IPhysicsStepHandler;
 import net.minecraft.server.MinecraftServer;
@@ -60,14 +61,14 @@ public class Simulator {
         Fizite.LOGGER.info("Stopping simulation thread");
         solverRunning = false;
         PhysicsStorage.clearSimulations();
-        GasSimulator.clearSync();
+//        GasStorage.clearSync();
         tickCount = 0;
     }
 
     @SuppressWarnings("unused")
     public static void onWorldStart(MinecraftServer server, ServerWorld world) {
         final var physics = PhysicsStorage.addToWorld(world);
-        final var gas = GasSimulator.addToWorld(world);
+        final var gas = ServerGasStorage.addToWorld(world);
         physics.addStepHandler(new GasStepHandler(gas));
     }
 
@@ -84,8 +85,7 @@ public class Simulator {
             if(tickCount++ >= 20 * 2) {
                 tickCount = 0;
                 PhysicsStorage.syncStates(server);
-                GasSimulator.syncStates();
-                Networking.cleanupLists();
+                Networking.sync();
             }
         } catch (InterruptedException e) {
             Fizite.LOGGER.error(e.getMessage());

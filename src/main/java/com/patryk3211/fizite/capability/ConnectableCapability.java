@@ -2,28 +2,52 @@ package com.patryk3211.fizite.capability;
 
 import net.minecraft.nbt.NbtByte;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
-import net.minecraft.world.World;
+
+import java.util.Objects;
 
 public abstract class ConnectableCapability<C extends ConnectableCapability<?>> extends Capability {
+    private final int constantMask;
     private int connectionMask;
     private int prevConnectionMask;
-    private final ConnectableCapability<?>[] connections;
+    protected final ConnectableCapability<?>[] connections;
     private final Class<C> thisClass;
 
-    public ConnectableCapability(String name, Class<C> thisClass) {
+    private ConnectableCapability(String name, Class<C> thisClass, int constantMask) {
         super(name);
-
         this.thisClass = thisClass;
-        connections = new ConnectableCapability[6];
+        this.constantMask = constantMask;
+
         connectionMask = 0;
         prevConnectionMask = 0b111111;
+        connections = new ConnectableCapability[6];
+    }
+
+    private static int computeMask(Direction... allowedDirections) {
+        int mask = 0b111111;
+        for (Direction allowedDirection : allowedDirections)
+            mask &= ~(1 << allowedDirection.getId());
+        return mask;
+    }
+
+    public ConnectableCapability(String name, Class<C> thisClass) {
+        this(name, thisClass, 0);
+    }
+
+    public ConnectableCapability(String name, Class<C> thisClass, Direction... allowedDirections) {
+        this(name, thisClass, computeMask(allowedDirections));
+    }
+
+    private int currentMask() {
+        return connectionMask | constantMask;
     }
 
     public void updateConnections() {
-        if(connectionMask != prevConnectionMask) {
+        final var mask = currentMask();
+        if(mask != prevConnectionMask) {
             // Update boundaries
-            final var diff = connectionMask ^ prevConnectionMask;
+            final var diff = mask ^ prevConnectionMask;
 
             for(final var dir : Direction.values()) {
                 final var dirMask = 1 << dir.getId();
@@ -33,40 +57,33 @@ public abstract class ConnectableCapability<C extends ConnectableCapability<?>> 
                 }
 
                 final var world = entity.getWorld();
-                assert world != null;
-                if((connectionMask & dirMask) == 0) {
+                Objects.requireNonNull(world);
+
+                final var oDir = dir.getOpposite();
+                if((mask & dirMask) == 0) {
                     // New side mask enables this side for connections
                     final var neighborPos = entity.getPos().offset(dir);
-//                    CapabilitiesBlockEntity.getEntity(world, neighborPos, neighbor -> {
-//                        final var cap = neighbor.getCapability(this.getClass());
-//                        if(cap.canConnect(dir.getOpposite())) {
-//                            if(connect(dir, thisClass.cast(cap)))
-//                                connections[dir.getId()] = cap;
-//                        }
-//                    });
-//                    if(neighbor == null)
-//                        continue;
-//                    if(neighbor.hasCapability(this.getClass())) {
-//
-//                    }
-//                    connect(dir, );
-//                    IGasCellProvider.connect(blockEntity, dir);
+                    final var neighborCap = getNeighbor(neighborPos);
+                    if(neighborCap != null && neighborCap.canConnect(oDir)) {
+                        connect(dir, neighborCap);
+                        connections[dir.getId()] = neighborCap;
+                        neighborCap.connections[oDir.getId()] = this;
+                    }
                 } else {
                     // New side mask disables this side from connections
                     disconnect(dir, thisClass.cast(connections[dir.getId()]));
+                    connections[dir.getId()].connections[oDir.getId()] = null;
                     connections[dir.getId()] = null;
-//                    final var boundaries = GasStorage.get(world);
-//                    boundaries.removeBoundary(pos, dir);
                 }
             }
 
-            prevConnectionMask = connectionMask;
+            prevConnectionMask = mask;
         }
     }
 
     @Override
     public void onLoad() {
-//        updateConnections();
+        updateConnections();
     }
 
     @Override
@@ -93,6 +110,8 @@ public abstract class ConnectableCapability<C extends ConnectableCapability<?>> 
         return (connectionMask & (1 << dir.getId())) == 0;
     }
 
-    public abstract boolean connect(Direction dir, C connectTo);
+    public abstract void connect(Direction dir, C connectTo);
     public abstract void disconnect(Direction dir, C disconnectFrom);
+
+    public abstract C getNeighbor(BlockPos pos);
 }

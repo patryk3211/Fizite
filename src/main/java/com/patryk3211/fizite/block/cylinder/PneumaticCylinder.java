@@ -5,7 +5,6 @@ import com.patryk3211.fizite.simulation.gas.GasStorage;
 import com.patryk3211.fizite.tiers.ITier;
 import com.patryk3211.fizite.tiers.ITieredBlock;
 import com.patryk3211.fizite.tiers.Material;
-import com.patryk3211.fizite.blockentity.CylinderEntity;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
 import net.minecraft.block.Block;
@@ -23,7 +22,7 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
-public abstract class PneumaticCylinder extends ModdedBlock implements BlockEntityProvider, ITieredBlock {
+public abstract class PneumaticCylinder extends ModdedBlock implements ITieredBlock {
     public enum ModelPart implements StringIdentifiable {
         CYLINDER, PISTON;
 
@@ -60,20 +59,20 @@ public abstract class PneumaticCylinder extends ModdedBlock implements BlockEnti
         builder.add(MODEL_PART_PROPERTY);
     }
 
-    @Nullable
-    @Override
-    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-        return new CylinderEntity(pos, state, material);
-    }
-
-    @Override
-    protected void onBlockRemoved(BlockState state, World world, BlockPos pos) {
-        if(world instanceof final ServerWorld serverWorld) {
-            final GasStorage boundaries = GasStorage.get(serverWorld);
-            boundaries.clearPosition(pos);
-        }
-        PhysicsStorage.get(world).clearPosition(pos);
-    }
+//    @Nullable
+//    @Override
+//    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+//        return new CylinderEntity(pos, state, material);
+//    }
+//
+//    @Override
+//    protected void onBlockRemoved(BlockState state, World world, BlockPos pos) {
+//        if(world instanceof final ServerWorld serverWorld) {
+//            final GasStorage boundaries = GasStorage.get(serverWorld);
+//            boundaries.clearPosition(pos);
+//        }
+//        PhysicsStorage.get(world).clearPosition(pos);
+//    }
 
     public float getPistonArea() {
         return pistonArea;

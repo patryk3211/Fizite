@@ -1,18 +1,23 @@
 package com.patryk3211.fizite.simulation;
 
 import com.patryk3211.fizite.Fizite;
+import com.patryk3211.fizite.simulation.gas.GasCapability;
+import com.patryk3211.fizite.simulation.gas.GasCell;
 import com.patryk3211.fizite.simulation.gas.GasStorage;
-import com.patryk3211.fizite.simulation.gas.IGasCellProvider;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import org.joml.Vector3d;
+
+import java.util.*;
 
 public class ClientGasStorage extends GasStorage {
+    private final Map<Long, GasCell> gasCellSync;// = new HashMap<>();
+    private final Queue<GasCell> newCells;
+
     private static ClientGasStorage gas;
 
     public ClientGasStorage() {
+        gasCellSync = new HashMap<>();
+        newCells = new LinkedList<>();
         GasStorage.clientStorage = this;
         gas = this;
     }
@@ -22,43 +27,37 @@ public class ClientGasStorage extends GasStorage {
     }
 
     @Override
-    public void addBlockEntity(BlockEntity entity) {
-        assert entity.getWorld() != null;
-        super.addBlockEntity(entity);
-        ClientNetworking.addToGasSync(entity.getPos(), entity.getWorld().getRegistryKey());
+    protected void sidedAdd(BlockPos pos, GasCapability capability) {
+        newCells.addAll(capability.cells());
+        ClientNetworking.addToGasSync(pos);
     }
 
     @Override
-    public void addGasProviderProcessSides(RegistryKey<World> world, BlockPos pos, IGasCellProvider provider) {
-        super.addGasProviderProcessSides(world, pos, provider);
-        ClientNetworking.addToGasSync(pos, world);
+    protected void sidedRemove(BlockPos pos, GasCapability capability) {
+        for (GasCell cell : capability.cells()) {
+            gasCellSync.remove(cell.getSyncId());
+            ClientNetworking.removeFromGasSync(cell.getSyncId());
+        }
     }
 
-    @Override
-    public void clearPosition(BlockPos pos) {
-        super.clearPosition(pos);
-        ClientNetworking.removeFromGasSync(pos);
-    }
-
-    @Override
-    public void addGasProvider(RegistryKey<World> world, BlockPos pos, IGasCellProvider provider) {
-        super.addGasProvider(world, pos, provider);
-        ClientNetworking.addToGasSync(pos, world);
-    }
-
-    @Override
-    public void removeGasProvider(RegistryKey<World> world, BlockPos pos) {
-        super.removeGasProvider(world, pos);
-        ClientNetworking.removeFromGasSync(pos);
+    public void setState(long id, double Ek, double n, Vector3d momentum) {
+        var processCount = newCells.size();
+        while (processCount-- > 0) {
+            final var cell = newCells.remove();
+            if(cell.getSyncId() == 0)
+                newCells.add(cell);
+            gasCellSync.put(cell.getSyncId(), cell);
+        }
+        final var cell = gasCellSync.get(id);
+        if(cell != null)
+            cell.set(Ek, n, momentum);
     }
 
     public static void onDisconnect() {
         Fizite.LOGGER.info("Clearing client gas simulation");
-        gas.boundaries.clear();
+        gas.registeredCapabilities.clear();
         gas.collectedBoundaries.clear();
-    }
-
-    public static void onBlockEntityUnload(BlockEntity entity, ClientWorld world) {
-        GasStorage.clientStorage.clearPosition(entity.getPos());
+        gas.gasCellSync.clear();
+        gas.newCells.clear();
     }
 }

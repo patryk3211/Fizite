@@ -1,42 +1,35 @@
 package com.patryk3211.fizite.simulation.gas;
 
-import com.patryk3211.fizite.capability.Capability;
 import com.patryk3211.fizite.capability.ConnectableCapability;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
-import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.Objects;
 
-public class GasCapability extends ConnectableCapability<GasCapability> implements IGasCellProvider {
-    private final GasCell gasCell;
+public abstract class GasCapability extends ConnectableCapability<GasCapability> {
+    private final GasBoundary[] boundaries;
 
-    public GasCapability(float volume) {
+    public GasCapability() {
         super("gas", GasCapability.class);
-
-        gasCell = new GasCell(volume);
+        boundaries = new GasBoundary[6];
     }
 
     @Override
     public void onLoad() {
+        final var world = Objects.requireNonNull(entity.getWorld());
         super.onLoad();
-        final var world = entity.getWorld();
-        assert world != null;
-        GasStorage.get(world).addGasProviderProcessSides(world.getRegistryKey(), entity.getPos(), this);//.addBlockEntity(entity);
-//        GasStorage.get(world).addGasProvider(world.getRegistryKey(), entity.getPos(), this);
-//        if(!world.isClient)
-//            Networking.gasAdded(world.getRegistryKey(), entity.getPos(), this);
+        GasStorage.get(world).add(entity.getPos(), this);
     }
 
     @Override
     public void onUnload() {
+        final var world = Objects.requireNonNull(entity.getWorld());
         super.onUnload();
-        final var world = entity.getWorld();
-        assert world != null;
-        GasStorage.get(world).clearPosition(entity.getPos());
-//        GasStorage.get(world).removeGasProvider(world.getRegistryKey(), entity.getPos());
+        GasStorage.get(world).remove(entity.getPos());
     }
 
     @Override
@@ -44,52 +37,90 @@ public class GasCapability extends ConnectableCapability<GasCapability> implemen
         assert tag instanceof NbtCompound;
         final var compound = (NbtCompound) tag;
         super.readNbt(compound.get("mask"));
-        gasCell.deserialize(compound.getCompound("state"));
+
+        final var list = compound.getList("states", NbtElement.COMPOUND_TYPE);
+        final var cellList = cells();
+        for(int i = 0; i < list.size(); ++i)
+            cellList.get(i).deserialize(list.getCompound(i));
     }
 
     @Override
     public NbtElement writeNbt() {
         final var compound = new NbtCompound();
         compound.put("mask", super.writeNbt());
-        compound.put("state", gasCell.serialize());
+
+        final var list = new NbtList();
+        final var cellList = cells();
+        for(GasCell gasCell : cellList)
+            list.add(gasCell.serialize());
+        compound.put("states", list);
         return compound;
     }
 
     @Override
-    public boolean connect(Direction dir, GasCapability connectTo) {
-//        IGasCellProvider.
-//        GasStorage.get(entity.getWorld()).addBoundary();
-        return false;
+    public void connect(Direction dir, GasCapability connectTo) {
+        Objects.requireNonNull(entity.getWorld());
+
+        final var oDir = dir.getOpposite();
+        final var boundary = new GasBoundary(
+                cell(dir), connectTo.cell(oDir),
+                crossSection(dir), connectTo.crossSection(oDir),
+                dir, Math.min(flowConstant(dir), connectTo.flowConstant(oDir)));
+        GasStorage.get(entity.getWorld()).add(boundary);
+        boundaries[dir.getId()] = boundary;
+        connectTo.boundaries[oDir.getId()] = boundary;
     }
 
     @Override
     public void disconnect(Direction dir, GasCapability disconnectFrom) {
+        Objects.requireNonNull(entity.getWorld());
 
+        final var oDir = dir.getOpposite();
+        GasStorage.get(entity.getWorld()).remove(boundaries[dir.getId()]);
+        boundaries[dir.getId()] = null;
+        disconnectFrom.boundaries[oDir.getId()] = null;
     }
 
     @Override
-    public GasCell getCell(@NotNull Direction dir) {
-        return gasCell;//canConnect(dir) ? gasCell : null;
+    public GasCapability getNeighbor(BlockPos pos) {
+        Objects.requireNonNull(entity.getWorld());
+        return GasStorage.get(entity.getWorld()).get(pos);
     }
 
-    @Override
-    public double getCrossSection(@NotNull Direction dir) {
-        return 1;
-    }
+    /**
+     * Get a collection of all gas cell states
+     * @return Ordered list of all cell states
+     */
+    public abstract List<GasCell> cells();
 
-    @Override
-    public double getFlowConstant(@NotNull Direction dir) {
-        return 1;
-    }
+    /**
+     * Get the gas cell state container
+     * @param dir Direction to query
+     * @return The gas cell
+     */
+    public abstract GasCell cell(Direction dir);
 
-    @Override
-    public GasCell getCell(int i) {
-        return gasCell;
-    }
+    /**
+     * Get the cross-section of the gas cell
+     * @param dir Direction to query
+     * @return The cross-section in meters
+     */
+    public abstract double crossSection(Direction dir);
+
+    /**
+     * Get the flow constant of the gas cell
+     * @param dir Direction to query
+     * @return The flow constant in range of 0 to 1
+     */
+    public abstract double flowConstant(Direction dir);
 
     @Override
     public void debugOutput(List<String> output) {
-        output.add(String.format("Pressure = %.1f Pa", gasCell.pressure()));
-        output.add(String.format("Temperature = %.2f K", gasCell.temperature()));
+        int index = 0;
+        for (GasCell cell : cells()) {
+            output.add(String.format("[%d] Pressure = %.1f Pa", index, cell.pressure()));
+            output.add(String.format("[%d] Temperature = %.2f K", index, cell.temperature()));
+            ++index;
+        }
     }
 }

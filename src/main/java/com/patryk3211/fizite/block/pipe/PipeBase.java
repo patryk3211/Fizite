@@ -1,21 +1,15 @@
 package com.patryk3211.fizite.block.pipe;
 
 import com.patryk3211.fizite.block.ModdedBlock;
-import com.patryk3211.fizite.blockentity.CapabilityPipeEntity;
-import com.patryk3211.fizite.simulation.gas.GasStorage;
-import com.patryk3211.fizite.simulation.gas.IGasCellProvider;
+import com.patryk3211.fizite.blockentity.PipeEntity;
 import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.item.ItemPlacementContext;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 public abstract class PipeBase extends ModdedBlock implements BlockEntityProvider {
@@ -54,27 +48,27 @@ public abstract class PipeBase extends ModdedBlock implements BlockEntityProvide
         builder.add(Properties.DOWN);
     }
 
-    @Nullable
-    @Override
-    public BlockState getPlacementState(ItemPlacementContext ctx) {
-        BlockState state = getDefaultState();
-        for(Direction dir : Direction.values()) {
-            var neighborPos = ctx.getBlockPos().add(dir.getVector());
-            var neighborEntity = ctx.getWorld().getBlockEntity(neighborPos);
-            if(neighborEntity instanceof final IGasCellProvider provider) {
-                if(provider.getCell(dir.getOpposite()) == null)
-                    continue;
-                // Attach to neighbor
-                state = state.with(ModdedBlock.propertyFromDirection(dir), true);
-            }
-        }
-        return state;
-    }
+//    @Nullable
+//    @Override
+//    public BlockState getPlacementState(ItemPlacementContext ctx) {
+//        BlockState state = getDefaultState();
+//        for(Direction dir : Direction.values()) {
+//            var neighborPos = ctx.getBlockPos().add(dir.getVector());
+//            var neighborEntity = ctx.getWorld().getBlockEntity(neighborPos);
+//            if(neighborEntity instanceof final IGasCellProvider provider) {
+//                if(provider.getCell(dir.getOpposite()) == null)
+//                    continue;
+//                // Attach to neighbor
+//                state = state.with(ModdedBlock.propertyFromDirection(dir), true);
+//            }
+//        }
+//        return state;
+//    }
 
     @Nullable
     @Override
     public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-        return CapabilityPipeEntity.TEMPLATE.create(pos, state); //new PipeEntity(pos, state);
+        return PipeEntity.TEMPLATE.create(pos, state); //new PipeEntity(pos, state);
     }
 
 //    @Nullable
@@ -89,13 +83,13 @@ public abstract class PipeBase extends ModdedBlock implements BlockEntityProvide
 //            };
 //    }
 
-    @Override
-    protected void onBlockRemoved(BlockState state, World world, BlockPos pos) {
-        if(world instanceof final ServerWorld serverWorld) {
-            final GasStorage boundaries = GasStorage.get(serverWorld);
-            boundaries.clearPosition(pos);
-        }
-    }
+//    @Override
+//    protected void onBlockRemoved(BlockState state, World world, BlockPos pos) {
+//        if(world instanceof final ServerWorld serverWorld) {
+//            final GasStorage boundaries = GasStorage.get(serverWorld);
+//            boundaries.clearPosition(pos);
+//        }
+//    }
 
     public float getVolume() {
         return volume;

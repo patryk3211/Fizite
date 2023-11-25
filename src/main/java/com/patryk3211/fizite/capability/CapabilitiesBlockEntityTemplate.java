@@ -6,9 +6,8 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.util.math.BlockPos;
 
-import java.lang.reflect.Constructor;
 import java.util.*;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 public class CapabilitiesBlockEntityTemplate<T extends CapabilitiesBlockEntity> {
     public interface EntitySupplier<T extends CapabilitiesBlockEntity> {
@@ -18,28 +17,24 @@ public class CapabilitiesBlockEntityTemplate<T extends CapabilitiesBlockEntity> 
     private FabricBlockEntityTypeBuilder<T> typeBuilder;
 
     private final EntitySupplier<T> supplier;
-//    private Set<Class<? extends Capability>> capabilities;
-    private Set<Supplier<? extends Capability>> capabilities;
+    private Set<Function<BlockState, ? extends Capability>> capabilities;
     private BlockEntityType<T> entityType;
+    private boolean initialClientSync;
 
     public CapabilitiesBlockEntityTemplate(EntitySupplier<T> supplier) {
         capabilities = new HashSet<>();
         typeBuilder = FabricBlockEntityTypeBuilder.create(this::create);
+        initialClientSync = false;
         this.supplier = supplier;
     }
 
-    private static boolean constructorValid(Class<?> clazz) {
-        for (Constructor<?> constructor : clazz.getConstructors()) {
-            if(constructor.getParameterCount() == 0)
-                return true;
-        }
-        return false;
+    public <C extends Capability> CapabilitiesBlockEntityTemplate<T> with(Function<BlockState, C> supplier) {
+        capabilities.add(supplier);
+        return this;
     }
 
-    public <C extends Capability> CapabilitiesBlockEntityTemplate<T> with(Supplier<C> supplier) {
-//        if(!constructorValid(clazz))
-//            throw new IllegalArgumentException("Capabilities must provide a 0 argument constructor, " + clazz + " doesn't");
-        capabilities.add(supplier);
+    public CapabilitiesBlockEntityTemplate<T> initialClientSync() {
+        initialClientSync = true;
         return this;
     }
 
@@ -54,10 +49,14 @@ public class CapabilitiesBlockEntityTemplate<T extends CapabilitiesBlockEntity> 
     }
 
     public BlockEntityType<T> bake() {
-        capabilities = Collections.unmodifiableSet(capabilities);//ImmutableSet.copyOf(capabilities);
+        capabilities = Collections.unmodifiableSet(capabilities);
         entityType = typeBuilder.build();
         typeBuilder = null;
         return entityType;
+    }
+
+    public boolean doInitialSync() {
+        return initialClientSync;
     }
 
     public T create(BlockPos position, BlockState state) {
@@ -66,23 +65,20 @@ public class CapabilitiesBlockEntityTemplate<T extends CapabilitiesBlockEntity> 
 
         final Map<Class<? extends Capability>, Capability> capabilities = new HashMap<>();
         for (final var capability : this.capabilities) {
-            final var capInstance = capability.get();
+            final var capInstance = capability.apply(state);
             capInstance.setEntity(entity);
-            capabilities.put(capInstance.getClass(), capInstance);
-//            try {
-//                final var capInstance = capability.getConstructor().newInstance();
-//                capInstance.setEntity(entity);
-//                capabilities.put(capability, capInstance);
-//            } catch (Exception e) {
-//                throw new RuntimeException("Capability doesn't provide the required 0 argument constructor");
-//            }
+            var capClass = capInstance.getClass();
+            int i = capInstance.deriveSuperclasses();
+            do {
+                capabilities.put(capClass, capInstance);
+                var superClass = capClass.getSuperclass();
+                if(superClass == Capability.class)
+                    break;
+                capClass = (Class<? extends Capability>) superClass;
+            } while (i-- > 0);
         }
         entity.setCapabilities(capabilities);
 
         return entity;
     }
-//
-//    public <C extends Capability> boolean hasCapability(Class<C> clazz) {
-//        return capabilities.contains(clazz);
-//    }
 }

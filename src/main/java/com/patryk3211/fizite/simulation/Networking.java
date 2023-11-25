@@ -1,15 +1,14 @@
 package com.patryk3211.fizite.simulation;
 
 import com.patryk3211.fizite.Fizite;
-import com.patryk3211.fizite.simulation.gas.GasSimulator;
-import com.patryk3211.fizite.simulation.gas.IGasCellProvider;
+import com.patryk3211.fizite.capability.CapabilitiesBlockEntity;
+import com.patryk3211.fizite.simulation.gas.GasCapability;
+import com.patryk3211.fizite.simulation.gas.GasCell;
 import com.patryk3211.fizite.simulation.physics.IPhysicsProvider;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import io.wispforest.owo.network.OwoNetChannel;
 import io.wispforest.owo.network.ServerAccess;
 import io.wispforest.owo.network.serialization.PacketBufSerializer;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -23,15 +22,15 @@ import java.util.*;
 public class Networking {
     public static OwoNetChannel CHANNEL;
 
-    public record GasState(BlockPos position, int cellIndex, double Ek, double n, double V_x, double V_y, double V_z) { }
+    public record GasState(long cellId, double Ek, double n, double V_x, double V_y, double V_z) { }
 
     public record ClientAddBlockEntity(BlockPos entityPosition, int[] rigidBodyIndices) { }
     public record ClientSyncState(int[] bodyIndices, Vec2f[] positions, Vec2f[] velocities, float[] angles, float[] angularVelocities) { }
     public record ClientGetSimulation(BlockPos[] entities, int[][] rigidBodyIndices) { }
     public record ClientSyncGasState(GasState[] states) { }
     public record ServerRequestBlockEntity(BlockPos entityPosition, Identifier world) { }
-    public record ServerAddGasSyncPosition(BlockPos position, Identifier world) { }
-    public record ServerRemoveGasSyncPosition(BlockPos position) { }
+    public record ServerAddGasSyncPosition(BlockPos position) { }
+    public record ServerRemoveGasSyncPosition(long id) { }
 
     private static class WaitListEntry {
         public static final int PHYSICS_FLAG = 1;
@@ -47,6 +46,8 @@ public class Networking {
         }
     }
     private static final Map<RegistryKey<World>, Map<BlockPos, WaitListEntry>> waitingForEntity = new HashMap<>();
+
+    private static final Map<ServerPlayerEntity, Map<Long, GasCell>> playerGasSync = new HashMap<>();
 
     private static void setWaitFlag(RegistryKey<World> world, BlockPos pos, ServerPlayerEntity player, int flags) {
         var worldEntry = waitingForEntity.computeIfAbsent(world, k -> new HashMap<>());
@@ -106,22 +107,20 @@ public class Networking {
             return new Vec2f(x, y);
         });
         PacketBufSerializer.register(GasState.class, (packetByteBuf, gasState) -> {
-            packetByteBuf.writeBlockPos(gasState.position);
-            packetByteBuf.writeInt(gasState.cellIndex);
+            packetByteBuf.writeLong(gasState.cellId);
             packetByteBuf.writeDouble(gasState.Ek);
             packetByteBuf.writeDouble(gasState.n);
             packetByteBuf.writeDouble(gasState.V_x);
             packetByteBuf.writeDouble(gasState.V_y);
             packetByteBuf.writeDouble(gasState.V_z);
         }, packetByteBuf -> {
-            BlockPos pos = packetByteBuf.readBlockPos();
-            int index = packetByteBuf.readInt();
+            long id = packetByteBuf.readLong();
             double Ek = packetByteBuf.readDouble();
             double n = packetByteBuf.readDouble();
             double V_x = packetByteBuf.readDouble();
             double V_y = packetByteBuf.readDouble();
             double V_z = packetByteBuf.readDouble();
-            return new GasState(pos, index, Ek, n, V_x, V_y, V_z);
+            return new GasState(id, Ek, n, V_x, V_y, V_z);
         });
 
         CHANNEL.registerClientboundDeferred(ClientAddBlockEntity.class);
@@ -134,16 +133,13 @@ public class Networking {
     }
 
     private static void handleRemoveGasSync(ServerRemoveGasSyncPosition packet, ServerAccess access) {
-        GasSimulator.removeFromSync(access.player(), packet.position);
+        var cells = playerGasSync.get(access.player());
+        if(cells != null)
+            cells.remove(packet.id);
     }
 
     private static void handleAddGasSync(ServerAddGasSyncPosition packet, ServerAccess access) {
-        final var server = access.runtime();
-        final var world = server.getWorld(RegistryKey.of(RegistryKeys.WORLD, packet.world));
-        if(world == null) {
-            Fizite.LOGGER.error("Server doesn't have a world with key " + packet.world);
-            return;
-        }
+        final var world = access.player().getServerWorld();
         if(!world.isChunkLoaded(packet.position))
             return;
         final var entity = world.getBlockEntity(packet.position);
@@ -151,11 +147,17 @@ public class Networking {
             setWaitFlag(world.getRegistryKey(), packet.position, access.player(), WaitListEntry.GAS_FLAG);
             return;
         }
-        if(entity instanceof final IGasCellProvider provider) {
-            GasSimulator.addToSync(access.player(), packet.position, provider);
-        } else {
-            Fizite.LOGGER.warn("Requested gas sync position is not a gas cell provider");
+        if(!(entity instanceof final CapabilitiesBlockEntity capEntity)) {
+            Fizite.LOGGER.warn("Requested gas sync position is not a capable block entity");
+            return;
         }
+        if(!capEntity.hasCapability(GasCapability.class)) {
+            Fizite.LOGGER.warn("Requested gas sync position is not a gas capable entity");
+            return;
+        }
+
+        final var playerCells = playerGasSync.computeIfAbsent(access.player(), k -> new HashMap<>());
+        capEntity.getCapability(GasCapability.class).cells().forEach(cell -> playerCells.put(cell.getSyncId(), cell));
     }
 
     private static void handleRequestBlockEntity(ServerRequestBlockEntity packet, ServerAccess access) {
@@ -202,8 +204,7 @@ public class Networking {
         clearWaitFlag(world, pos, WaitListEntry.PHYSICS_FLAG);
     }
 
-    public static void gasAdded(RegistryKey<World> world, BlockPos pos, IGasCellProvider provider) {
-        Fizite.LOGGER.info(world.toString());
+    public static void gasAdded(RegistryKey<World> world, BlockPos pos, GasCapability capability) {
         final var worldEntry = waitingForEntity.get(world);
         if(worldEntry == null)
             return;
@@ -212,20 +213,44 @@ public class Networking {
             return;
 
         entry.players.forEach((player, flags) -> {
-            if((flags & WaitListEntry.GAS_FLAG) != 0)
-                GasSimulator.addToSync(player, pos, provider);
+            if((flags & WaitListEntry.GAS_FLAG) != 0) {
+                final var playerCells = playerGasSync.computeIfAbsent(player, k -> new HashMap<>());
+                capability.cells().forEach(cell -> playerCells.put(cell.getSyncId(), cell));
+            }
         });
         clearWaitFlag(world, pos, WaitListEntry.GAS_FLAG);
     }
 
-//    public static void entityAdded(BlockEntity entity) {
-//        if(entity instanceof final IPhysicsProvider provider)
-//            physicsAdded(entity.getPos(), provider);
-//        if(entity instanceof final IGasCellProvider provider)
-//            gasAdded(entity.getPos(), provider);
-//    }
+    public static void gasRemoved(RegistryKey<World> world, GasCapability capability) {
+        playerGasSync.forEach((player, cells) -> {
+            if(!player.getServerWorld().getRegistryKey().equals(world))
+                return;
+            capability.cells().forEach(cell -> cells.remove(cell.getSyncId()));
+        });
+    }
 
-    public static void cleanupLists() {
+    public static void clear() {
+        playerGasSync.clear();
+    }
+
+    public static void sync() {
+        cleanupLists();
+        syncGas();
+    }
+
+    private static void syncGas() {
+        playerGasSync.forEach((player, syncStates) -> {
+            final List<Networking.GasState> packetData = new LinkedList<>();
+            syncStates.forEach((id, cell) -> {
+                final var momentum = cell.getMomentum();
+                packetData.add(new GasState(id, cell.getMoleculeKineticEnergy(), cell.getTotalMoles(), momentum.x, momentum.y, momentum.z));
+            });
+            final var packet = new Networking.ClientSyncGasState(packetData.toArray(new Networking.GasState[0]));
+            Networking.CHANNEL.serverHandle(player).send(packet);
+        });
+    }
+
+    private static void cleanupLists() {
         final Map<RegistryKey<World>, Set<BlockPos>> removePositions = new HashMap<>();
         waitingForEntity.forEach((world, worldEntry) -> worldEntry.forEach((pos, entry) -> {
             if (++entry.cycles >= 2) {

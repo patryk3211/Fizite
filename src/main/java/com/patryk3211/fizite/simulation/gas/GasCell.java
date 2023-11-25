@@ -11,6 +11,7 @@ import org.joml.Vector3d;
 public class GasCell {
     public static final NbtKey<NbtCompound> NBT_KEY = new NbtKey<>("gas", NbtKey.Type.COMPOUND);
 
+    private static final NbtKey<Long> NBT_SYNC_ID = new NbtKey<>("id", NbtKey.Type.LONG);
     private static final NbtKey<Double> NBT_TOTAL_MOLE_COUNT = new NbtKey<>("n", NbtKey.Type.DOUBLE);
     private static final NbtKey<Double> NBT_KINETIC_ENERGY = new NbtKey<>("Ek", NbtKey.Type.DOUBLE);
     private static final NbtKey<Double> NBT_MOMENTUM_X = new NbtKey<>("Vx", NbtKey.Type.DOUBLE);
@@ -23,6 +24,7 @@ public class GasCell {
     private final Vector3d momentum;
 
     private double molarMass;
+    private long syncId;
 
     public GasCell(double volume) {
         this.volume = volume;
@@ -46,6 +48,14 @@ public class GasCell {
         this.momentum.set(momentum);
     }
 
+    public void setSyncId(long id) {
+        syncId = id;
+    }
+
+    public long getSyncId() {
+        return syncId;
+    }
+
     public NbtCompound serialize() {
         NbtCompound tag = new NbtCompound();
         tag.put(NBT_KINETIC_ENERGY, kineticEnergy);
@@ -53,6 +63,7 @@ public class GasCell {
         tag.put(NBT_MOMENTUM_X, momentum.x);
         tag.put(NBT_MOMENTUM_Y, momentum.y);
         tag.put(NBT_MOMENTUM_Z, momentum.z);
+        tag.put(NBT_SYNC_ID, syncId);
         return tag;
     }
 
@@ -62,6 +73,7 @@ public class GasCell {
         momentum.z = tag.get(NBT_MOMENTUM_Z);
         kineticEnergy = tag.get(NBT_KINETIC_ENERGY);
         totalMoles = tag.get(NBT_TOTAL_MOLE_COUNT);
+        syncId = tag.get(NBT_SYNC_ID);
     }
 
     public double pressure() {

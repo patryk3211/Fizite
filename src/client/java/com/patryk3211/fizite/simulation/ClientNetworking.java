@@ -1,7 +1,8 @@
 package com.patryk3211.fizite.simulation;
 
 import com.patryk3211.fizite.Fizite;
-import com.patryk3211.fizite.simulation.gas.IGasCellProvider;
+import com.patryk3211.fizite.simulation.gas.GasCapability;
+import com.patryk3211.fizite.simulation.gas.GasCell;
 import com.patryk3211.fizite.simulation.physics.IPhysicsProvider;
 import io.wispforest.owo.network.ClientAccess;
 import io.wispforest.owo.network.OwoNetChannel;
@@ -9,6 +10,9 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.joml.Vector3d;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class ClientNetworking {
     public static void initialize() {
@@ -19,13 +23,13 @@ public class ClientNetworking {
         CHANNEL.registerClientbound(Networking.ClientSyncGasState.class, ClientNetworking::handleGasSync);
     }
 
-    public static void addToGasSync(BlockPos pos, RegistryKey<World> world) {
-        final var packet = new Networking.ServerAddGasSyncPosition(pos, world.getValue());
+    public static void addToGasSync(BlockPos pos) {
+        final var packet = new Networking.ServerAddGasSyncPosition(pos);
         Networking.CHANNEL.clientHandle().send(packet);
     }
 
-    public static void removeFromGasSync(BlockPos pos) {
-        final var packet = new Networking.ServerRemoveGasSyncPosition(pos);
+    public static void removeFromGasSync(long id) {
+        final var packet = new Networking.ServerRemoveGasSyncPosition(id);
         Networking.CHANNEL.clientHandle().send(packet);
     }
 
@@ -41,17 +45,7 @@ public class ClientNetworking {
         }
         // Try to synchronize all received states
         for (Networking.GasState state : packet.states()) {
-            final var entity = client.world.getBlockEntity(state.position());
-            if(entity == null) {
-                Fizite.LOGGER.warn("Client received a gas state for a position without a block entity");
-                continue;
-            }
-            if(entity instanceof final IGasCellProvider provider) {
-                final var cell = provider.getCell(state.cellIndex());
-                cell.set(state.Ek(), state.n(), new Vector3d(state.V_x(), state.V_y(), state.V_z()));
-            } else {
-                Fizite.LOGGER.warn("Client's body entity is not a gas cell provider");
-            }
+            ClientGasStorage.get().setState(state.cellId(), state.Ek(), state.n(), new Vector3d(state.V_x(), state.V_y(), state.V_z()));
         }
     }
 
