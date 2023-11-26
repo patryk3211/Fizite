@@ -10,6 +10,7 @@ import com.patryk3211.fizite.utility.IDebugOutput;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.state.property.Properties;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
@@ -80,11 +81,11 @@ public class CrankShaftEntity extends BlockEntity implements IPhysicsProvider, I
     }
 
     @Override
-    public String[] debugInfo() {
+    public Text[] debugInfo() {
         final var state = body.getState();
-        return new String[] {
-                String.format("Angle = %.3f", state.positionA),
-                String.format("Angular Velocity = %.3f", state.velocityA)
+        return new Text[] {
+                Text.of(String.format("Angle = %.3f", state.positionA)),
+                Text.of(String.format("Angular Velocity = %.3f", state.velocityA))
         };
     }
 }

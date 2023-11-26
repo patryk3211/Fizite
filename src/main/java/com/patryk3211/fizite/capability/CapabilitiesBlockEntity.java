@@ -8,13 +8,12 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public abstract class CapabilitiesBlockEntity extends BlockEntity implements IDebugOutput {
     private CapabilitiesBlockEntityTemplate<?> template;
@@ -90,15 +89,23 @@ public abstract class CapabilitiesBlockEntity extends BlockEntity implements IDe
     @Override
     public NbtCompound toInitialChunkDataNbt() {
         final var tag = new NbtCompound();
-        writeNbt(tag);
+        super.writeNbt(tag);
+        for (Capability capability : capabilities.values()) {
+            final var capNbt = capability.initialSyncNbt();
+            if(capNbt != null)
+                tag.put(capability.name, capNbt);
+        }
         return tag;
     }
 
     @Override
-    public String[] debugInfo() {
-        List<String> output = new LinkedList<>();
-        for (Capability capability : capabilities.values())
-            capability.debugOutput(output);
-        return output.toArray(new String[0]);
+    public Text[] debugInfo() {
+        List<Text> output = new LinkedList<>();
+        Set<Capability> logged = new HashSet<>();
+        for (Capability capability : capabilities.values()) {
+            if(logged.add(capability))
+                capability.debugOutput(output);
+        }
+        return output.toArray(new Text[0]);
     }
 }

@@ -26,20 +26,8 @@ public class RotationConstraint extends Constraint {
         J.unsafe_set(row, column1 + 2, 1);
         J.unsafe_set(row, column2 + 2, -1);
 
-        C.unsafe_set(row, 0, a1 - a2);
-    }
-
-    @Override
-    public void restMatrix(int row, DMatrixRMaj C, DMatrixSparseCSC J) {
-        final var column1 = bodies[0].index() * 3;
-        final var column2 = bodies[1].index() * 3;
-
-        J.unsafe_set(row, column1 + 2, 1);
-        J.unsafe_set(row, column2 + 2, -1);
-
-        final var a1 = bodies[0].getState().positionA;
-        final var a2 = bodies[1].getState().positionA;
-        C.unsafe_set(row, 0, a1 - a2);
+        final var aDiff = a1 - a2;
+        C.unsafe_set(row, 0, (aDiff + Math.PI) % (2 * Math.PI) - Math.PI);
     }
 
     @Override

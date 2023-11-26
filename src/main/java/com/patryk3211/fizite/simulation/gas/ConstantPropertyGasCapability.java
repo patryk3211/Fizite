@@ -15,6 +15,13 @@ public class ConstantPropertyGasCapability extends GasCapability {
         this.flowConstant = flowConstant;
     }
 
+    public ConstantPropertyGasCapability(float volume, float crossSection, float flowConstant, Direction... directions) {
+        super(directions);
+        cell = new GasCell(volume);
+        this.crossSection = crossSection;
+        this.flowConstant = flowConstant;
+    }
+
     @Override
     public List<GasCell> cells() {
         return List.of(cell);

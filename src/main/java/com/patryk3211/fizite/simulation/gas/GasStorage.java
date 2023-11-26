@@ -1,7 +1,6 @@
 package com.patryk3211.fizite.simulation.gas;
 
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.PersistentState;
@@ -57,114 +56,6 @@ public abstract class GasStorage extends PersistentState {
     public void remove(GasBoundary boundary) {
         collectedBoundaries.remove(boundary);
     }
-
-//    public void addGasProviderProcessSides(RegistryKey<World> world, BlockPos pos, IGasCellProvider provider) {
-//        PositionData entry = new PositionData(provider);
-//        boundaries.put(pos, entry);
-//
-//        for (final var dir : Direction.values()) {
-//            if (provider.getCell(dir) == null) {
-//                // This side doesn't provide a gas cell
-//                continue;
-//            }
-//
-//            final var entryAt = boundaries.get(pos.offset(dir));
-//            if (entryAt == null)
-//                // This position doesn't have a gas cell provider
-//                continue;
-//            final var neighbor = entryAt.provider;
-//            final var oDir = dir.getOpposite();
-//            final var neighborCell = neighbor.getCell(oDir);
-//            if (neighborCell == null)
-//                // This side doesn't have a gas cell
-//                continue;
-//
-//            // Create a new boundary and add it to the world boundaries
-//            final var boundary = new GasBoundary(
-//                    provider.getCell(dir), neighborCell,
-//                    provider.getCrossSection(dir), neighbor.getCrossSection(oDir),
-//                    dir,
-//                    Math.min(provider.getFlowConstant(dir), neighbor.getFlowConstant(oDir))
-//            );
-//
-//            addBoundary(pos, dir, boundary);
-//        }
-//
-//        // Might add some clients to sync lists
-//        Networking.gasAdded(world, pos, provider);
-//    }
-//
-//    public void addGasProvider(RegistryKey<World> world, BlockPos pos, IGasCellProvider provider) {
-//        PositionData entry = new PositionData(provider);
-//        boundaries.put(pos, entry);
-//        Networking.gasAdded(world, pos, provider);
-//    }
-
-//    public void addBoundary(BlockPos pos, @NotNull Direction dir, @NotNull GasBoundary boundary) {
-//        if (dir.getDirection() == Direction.AxisDirection.NEGATIVE) {
-//            // Add the negative offset to get the actual position of the boundary
-//            pos = pos.add(dir.getVector());
-//            // Get the opposite (positive) direction
-//            dir = dir.getOpposite();
-//        }
-//        final int index = DirectionUtilities.positiveDirectionIndex(dir);
-//
-//        var boundariesAt = boundaries.get(pos);
-//        if (boundariesAt == null) {
-//            throw new IllegalStateException("Given direction doesn't have a gas provider");
-//        }
-//        if (boundariesAt.directions[index] != null) {
-//            Fizite.LOGGER.warn("Overriding GasBoundary at {}, direction {}", pos, dir);
-//            collectedBoundaries.remove(boundariesAt.directions[index]);
-//        }
-//        boundariesAt.directions[index] = boundary;
-//        collectedBoundaries.add(boundary);
-//    }
-//
-//    public GasBoundary getBoundary(BlockPos pos, @NotNull Direction dir) {
-//        if (dir.getDirection() == Direction.AxisDirection.NEGATIVE) {
-//            // Add the negative offset to get the actual position of the boundary
-//            pos = pos.add(dir.getVector());
-//            // Get the opposite (positive) direction
-//            dir = dir.getOpposite();
-//        }
-//
-//        final var boundariesAt = boundaries.get(pos);
-//        if (boundariesAt == null)
-//            return null;
-//
-//        int index = DirectionUtilities.positiveDirectionIndex(dir);
-//        return boundariesAt.directions[index];
-//    }
-//
-//    public void removeBoundary(BlockPos pos, @NotNull Direction dir) {
-//        if (dir.getDirection() == Direction.AxisDirection.NEGATIVE) {
-//            // Add the negative offset to get the actual position of the boundary
-//            pos = pos.add(dir.getVector());
-//            // Get the opposite (positive) direction
-//            dir = dir.getOpposite();
-//        }
-//
-//        final var boundariesAt = boundaries.get(pos);
-//        if (boundariesAt == null)
-//            return;
-//
-//        final int index = DirectionUtilities.positiveDirectionIndex(dir);
-//        collectedBoundaries.remove(boundariesAt.directions[index]);
-//        boundariesAt.directions[index] = null;
-//    }
-//
-//    public void clearPosition(BlockPos pos) {
-//        for (final var dir : Direction.values()) {
-//            removeBoundary(pos, dir);
-//        }
-//        boundaries.remove(pos);
-//    }
-//
-//    public void removeGasProvider(RegistryKey<World> world, BlockPos pos) {
-//        boundaries.remove(pos);
-//        GasSimulator.removeFromSync(world, pos);
-//    }
 
     public void simulate(double deltaTime) {
         for(GasBoundary boundary : collectedBoundaries) {

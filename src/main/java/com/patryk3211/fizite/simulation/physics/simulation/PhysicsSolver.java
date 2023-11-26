@@ -12,6 +12,9 @@ public class PhysicsSolver {
 
     private double stageTimeDelta;
 
+    public double maxVelocity;
+    public double maxAngularVelocity;
+
     public void resize(int newSize) {
         if(newSize == 0) {
             initial = null;
@@ -36,6 +39,8 @@ public class PhysicsSolver {
         resize(system.size());
 
         currentStage = 0;
+        maxVelocity = 0;
+        maxAngularVelocity = 0;
         this.deltaTime = deltaTime;
     }
 
@@ -87,7 +92,6 @@ public class PhysicsSolver {
         }
     }
 
-
     public void solve() {
         final var systemStates = system.getStates();
         for(int i = 0; i < system.size(); ++i) {
@@ -120,8 +124,24 @@ public class PhysicsSolver {
                 }
                 sState.velocity.set(iState.velocity);
                 sState.position.set(iState.position);
+
+                // Save maximum velocities
+                if(sState.velocity.x > maxVelocity)
+                    maxVelocity = sState.velocity.x;
+                if(sState.velocity.y > maxVelocity)
+                    maxVelocity = sState.velocity.y;
+                if(sState.velocityA > maxAngularVelocity)
+                    maxAngularVelocity = sState.velocityA;
             }
         }
+    }
+
+    public double maxVelocity() {
+        return maxVelocity;
+    }
+
+    public double maxAngularVelocity() {
+        return maxAngularVelocity;
     }
 
     public boolean stepFinished() {

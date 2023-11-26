@@ -2,6 +2,7 @@ package com.patryk3211.fizite.simulation.physics;
 
 import com.patryk3211.fizite.Fizite;
 import com.patryk3211.fizite.simulation.Networking;
+import com.patryk3211.fizite.simulation.Simulator;
 import com.patryk3211.fizite.simulation.physics.simulation.IForceGenerator;
 import com.patryk3211.fizite.simulation.physics.simulation.IPhysicsStepHandler;
 import com.patryk3211.fizite.simulation.physics.simulation.PhysicsWorld;
@@ -22,6 +23,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec2f;
 import net.minecraft.world.PersistentState;
 import net.minecraft.world.World;
+import org.ejml.equation.IntegerSequence;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
@@ -41,8 +43,6 @@ public class PhysicsStorage extends PersistentState {
             final var position = new Vector3d(posNbt.getDouble(0), posNbt.getDouble(1), posNbt.getDouble(2));
             final var velNbt = data.getList("v", NbtElement.DOUBLE_TYPE);
             final var velocity = new Vector3d(velNbt.getDouble(0), velNbt.getDouble(1), velNbt.getDouble(2));
-//            final var restNbt = data.getList("p0", NbtElement.FLOAT_TYPE);
-//            final var restPosition = new Vector3f(restNbt.getFloat(0), restNbt.getFloat(1), restNbt.getFloat(2));
             return new RigidBodyData(position, velocity);
         }
 
@@ -58,11 +58,6 @@ public class PhysicsStorage extends PersistentState {
             velNbt.add(NbtDouble.of(rigidBodyData.velocity.y));
             velNbt.add(NbtDouble.of(rigidBodyData.velocity.z));
             data.put("v", velNbt);
-//            final var restNbt = new NbtList();
-//            restNbt.add(NbtFloat.of(rigidBodyData.restPosition.x));
-//            restNbt.add(NbtFloat.of(rigidBodyData.restPosition.y));
-//            restNbt.add(NbtFloat.of(rigidBodyData.restPosition.z));
-//            data.put("p0", restNbt);
             return data;
         }
     }
@@ -108,7 +103,7 @@ public class PhysicsStorage extends PersistentState {
     private final Map<BlockPos, RigidBodyData[]> saveData;
 
     public PhysicsStorage() {
-        simulation = new PhysicsWorld();
+        simulation = new PhysicsWorld(Simulator.TICK_RATE, 100);
         dataMap = new HashMap<>();
         saveData = new HashMap<>();
     }
@@ -116,6 +111,10 @@ public class PhysicsStorage extends PersistentState {
     public PhysicsStorage(NbtCompound nbt) {
         this();
         readNbt(nbt);
+    }
+
+    public PhysicsWorld physicsSimulation() {
+        return simulation;
     }
 
     public void addConstraint(Constraint constraint, BlockPos position, Direction direction) {
@@ -232,7 +231,6 @@ public class PhysicsStorage extends PersistentState {
             if(savedState != null) {
                 // Set body state to save state for every body
                 final var state = savedState[index++];
-//                body.setRestPosition(state.restPosition.x, state.restPosition.y, state.restPosition.z);
                 final var bodyState = body.getState();
                 bodyState.position.x = state.position.x;
                 bodyState.position.y = state.position.y;
@@ -330,6 +328,28 @@ public class PhysicsStorage extends PersistentState {
         return result;
     }
 
+    private static Text writeTime(String name, int[] frames) {
+        int sum = 0, min = frames[0], max = frames[0];
+        for (int frame : frames) {
+            sum += frame;
+            if (frame < min)
+                min = frame;
+            if (frame > max)
+                max = frame;
+        }
+        float avg = (float) sum / frames.length;
+
+        final var result = Text.empty();
+        result.append("[Fizite]   " + name + ": ");
+        result.append(Text.literal(String.format("%.2f", avg)).setStyle(Style.EMPTY.withColor(Formatting.WHITE)));
+        result.append("/");
+        result.append(Text.literal(String.format("%d", min)).setStyle(Style.EMPTY.withColor(Formatting.WHITE)));
+        result.append("/");
+        result.append(Text.literal(String.format("%d", max)).setStyle(Style.EMPTY.withColor(Formatting.WHITE)));
+        result.append("\n");
+        return result;
+    }
+
     public Text timingReport() {
         final var result = Text.empty().setStyle(Style.EMPTY.withColor(Formatting.GRAY));
         result.append("[Fizite] Simulation times (1 step, Avg/Min/Max):\n");
@@ -338,6 +358,7 @@ public class PhysicsStorage extends PersistentState {
         result.append(writeTime("physicsStep", simulation.physicsStepTime));
         result.append(writeTime("physicsSolve", simulation.physicsSolveTime));
         result.append(writeTime("stepHandlers", simulation.stepHandlersTime));
+        result.append(writeTime("constraintIterCount", simulation.iterationCount));
         result.append("[Fizite] Simulation times (singular, " + simulation.stepCount() + " steps)\n");
         result.append("[Fizite]   Start time = ");
         final var startTime = simulation.startTime / 1000.0;
@@ -355,7 +376,6 @@ public class PhysicsStorage extends PersistentState {
         return new RigidBodyData(
                 new Vector3d(state.position.x, state.position.y, state.positionA),
                 new Vector3d(state.velocity.x, state.velocity.y, state.velocityA)
-//                new Vector3f(body.getRestPosition().x, body.getRestPosition().y, body.getRestAngle())
         );
     }
 

@@ -2,6 +2,7 @@ package com.patryk3211.fizite.capability;
 
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.text.Text;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NonNls;
@@ -44,11 +45,15 @@ public abstract class Capability {
 
     }
 
-    public void debugOutput(List<String> output) {
+    public void debugOutput(List<Text> output) {
 
     }
 
     public NbtElement writeNbt() {
         return null;
+    }
+
+    public NbtElement initialSyncNbt() {
+        return writeNbt();
     }
 }

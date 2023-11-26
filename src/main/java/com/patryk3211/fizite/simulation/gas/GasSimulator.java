@@ -137,7 +137,8 @@ public class GasSimulator {
             final double v0Sum = sourceVelocity0.x * sourceVelocity0.x + sourceVelocity0.y * sourceVelocity0.y + sourceVelocity0.z * sourceVelocity0.z;
             final double v1Sum = sourceVelocity1.x * sourceVelocity1.x + sourceVelocity1.y * sourceVelocity1.y + sourceVelocity1.z * sourceVelocity1.z;
 
-            source.changeEnergy(-(v1Sum - v0Sum) / (2 * sourceMass));
+            source.changeEnergy(-0.5 * sourceMass * (v1Sum - v0Sum));
+//            source.changeEnergy(-(v1Sum - v0Sum) / (2 * sourceMass));
         }
 
         if(sinkMass > 0) {
@@ -149,7 +150,8 @@ public class GasSimulator {
             final double v0Sum = sinkVelocity0.x * sinkVelocity0.x + sinkVelocity0.y * sinkVelocity0.y + sinkVelocity0.z * sinkVelocity0.z;
             final double v1Sum = sinkVelocity1.x * sinkVelocity1.x + sinkVelocity1.y * sinkVelocity1.y + sinkVelocity1.z * sinkVelocity1.z;
 
-            sink.changeEnergy(-(v1Sum - v0Sum) / (2 * sinkMass));
+            sink.changeEnergy(-0.5 * sinkMass * (v1Sum - v0Sum));
+//            sink.changeEnergy(-(v1Sum - v0Sum) / (2 * sinkMass));
         }
 
         if(source.getMoleculeKineticEnergy() < 0)

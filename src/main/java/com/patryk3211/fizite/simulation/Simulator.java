@@ -5,6 +5,7 @@ import com.patryk3211.fizite.simulation.gas.GasSimulator;
 import com.patryk3211.fizite.simulation.gas.GasStorage;
 import com.patryk3211.fizite.simulation.gas.ServerGasStorage;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
+import com.patryk3211.fizite.simulation.physics.SimulationTuner;
 import com.patryk3211.fizite.simulation.physics.simulation.IPhysicsStepHandler;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
@@ -61,7 +62,6 @@ public class Simulator {
         Fizite.LOGGER.info("Stopping simulation thread");
         solverRunning = false;
         PhysicsStorage.clearSimulations();
-//        GasStorage.clearSync();
         tickCount = 0;
     }
 
@@ -69,6 +69,7 @@ public class Simulator {
     public static void onWorldStart(MinecraftServer server, ServerWorld world) {
         final var physics = PhysicsStorage.addToWorld(world);
         final var gas = ServerGasStorage.addToWorld(world);
+        physics.physicsSimulation().tuner = new SimulationTuner(physics);
         physics.addStepHandler(new GasStepHandler(gas));
     }
 

@@ -65,9 +65,6 @@ public class PhysicsTest {
 //        world.addConstraint(new BearingConstraint(body2, body3, 2, 0, -1, 0));
 //        world.addConstraint(new LockYConstraint(body3, 0));
 
-        world.restPositions();
-        System.out.println("restSolve = " + (world.restPositionSolveTime / 1000.0) + "us");
-
         for(int i = 0; i < 400; ++i) {
 //            if(i > 400) {
 //                body1.getState().extForceA = 10;

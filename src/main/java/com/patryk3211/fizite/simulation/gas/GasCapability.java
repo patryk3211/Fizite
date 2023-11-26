@@ -4,6 +4,7 @@ import com.patryk3211.fizite.capability.ConnectableCapability;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
@@ -15,6 +16,11 @@ public abstract class GasCapability extends ConnectableCapability<GasCapability>
 
     public GasCapability() {
         super("gas", GasCapability.class);
+        boundaries = new GasBoundary[6];
+    }
+
+    public GasCapability(Direction... directions) {
+        super("gas", GasCapability.class, directions);
         boundaries = new GasBoundary[6];
     }
 
@@ -52,7 +58,20 @@ public abstract class GasCapability extends ConnectableCapability<GasCapability>
         final var list = new NbtList();
         final var cellList = cells();
         for(GasCell gasCell : cellList)
-            list.add(gasCell.serialize());
+            list.add(gasCell.serialize(false));
+        compound.put("states", list);
+        return compound;
+    }
+
+    @Override
+    public NbtElement initialSyncNbt() {
+        final var compound = new NbtCompound();
+        compound.put("mask", super.writeNbt());
+
+        final var list = new NbtList();
+        final var cellList = cells();
+        for(GasCell gasCell : cellList)
+            list.add(gasCell.serialize(true));
         compound.put("states", list);
         return compound;
     }
@@ -115,11 +134,11 @@ public abstract class GasCapability extends ConnectableCapability<GasCapability>
     public abstract double flowConstant(Direction dir);
 
     @Override
-    public void debugOutput(List<String> output) {
+    public void debugOutput(List<Text> output) {
         int index = 0;
         for (GasCell cell : cells()) {
-            output.add(String.format("[%d] Pressure = %.1f Pa", index, cell.pressure()));
-            output.add(String.format("[%d] Temperature = %.2f K", index, cell.temperature()));
+            output.add(Text.of(String.format("[%d] Pressure = %.1f Pa", index, cell.pressure())));
+            output.add(Text.of(String.format("[%d] Temperature = %.2f K", index, cell.temperature())));
             ++index;
         }
     }

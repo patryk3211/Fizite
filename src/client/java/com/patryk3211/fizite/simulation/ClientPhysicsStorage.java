@@ -72,7 +72,6 @@ public class ClientPhysicsStorage extends PhysicsStorage {
         processSides(provider, entity);
     }
 
-
     private void copyPositions() {
         final var system = physics.simulation.system();
         if(prevPositions == null || prevPositions.length < system.size()) {

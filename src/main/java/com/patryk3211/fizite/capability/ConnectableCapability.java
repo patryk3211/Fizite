@@ -107,7 +107,7 @@ public abstract class ConnectableCapability<C extends ConnectableCapability<?>> 
     }
 
     public boolean canConnect(Direction dir) {
-        return (connectionMask & (1 << dir.getId())) == 0;
+        return (currentMask() & (1 << dir.getId())) == 0;
     }
 
     public abstract void connect(Direction dir, C connectTo);

@@ -23,15 +23,6 @@ public abstract class Constraint {
     public abstract void calculate(int index, DMatrixRMaj C, DMatrixSparseCSC J, DMatrixSparseCSC JDot);
 
     /**
-     * Calculates just the position matrix
-     * Used for determining position 0 of bodies
-     * @param index Index of constraint, first row allocated in matrices for this constraint
-     * @param C Position constraint matrix
-     * @param J Jacobian matrix
-     */
-    public abstract void restMatrix(int index, DMatrixRMaj C, DMatrixSparseCSC J);
-
-    /**
      * Forces the position of a given body to one that satisfies this constraint.
      * @param index Index of body between 0 and constraint's body count
      */

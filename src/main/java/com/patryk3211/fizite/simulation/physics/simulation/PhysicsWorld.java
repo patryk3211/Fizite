@@ -1,6 +1,7 @@
 package com.patryk3211.fizite.simulation.physics.simulation;
 
 import com.patryk3211.fizite.simulation.Simulator;
+import com.patryk3211.fizite.simulation.physics.SimulationTuner;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.Constraint;
 import org.joml.Vector2d;
 
@@ -22,6 +23,7 @@ public class PhysicsWorld {
     private final PhysicsSolver physicsSolver;
     private final ConstraintSolver constraintSolver;
     private final PhysicalSystem system;
+    public SimulationTuner tuner;
 
     private final List<RigidBody> rigidBodies;
     private final LinkedList<Integer> freeIndices;
@@ -40,7 +42,7 @@ public class PhysicsWorld {
     public long[] physicsStepTime;
     public long[] physicsSolveTime;
     public long[] stepHandlersTime;
-    public long restPositionSolveTime;
+    public int[] iterationCount;
     public long totalTime;
 
     public PhysicsWorld() {
@@ -70,6 +72,7 @@ public class PhysicsWorld {
         forceGeneratorTime = new long[steps * 4];
         physicsStepTime = new long[steps * 4];
         physicsSolveTime = new long[steps * 4];
+        iterationCount = new int[steps * 4];
         stepHandlersTime = new long[steps];
     }
 
@@ -82,6 +85,7 @@ public class PhysicsWorld {
         forceGeneratorTime = new long[steps * 4];
         physicsStepTime = new long[steps * 4];
         physicsSolveTime = new long[steps * 4];
+        iterationCount = new int[steps * 4];
         stepHandlersTime = new long[steps];
     }
 
@@ -176,15 +180,12 @@ public class PhysicsWorld {
     }
 
     public void simulate() {
-//        if(bodyCount == 0)
-//            return;
         totalTime = -System.nanoTime();
 
         startTime = -System.nanoTime();
         if(parametersChanged) {
             constraintSolver.resizeMatrices(totalConstraintCount);
             parametersChanged = false;
-//            restPositions();
         }
 
         physicsSolver.start(stepTime, system);
@@ -209,6 +210,7 @@ public class PhysicsWorld {
                     if (totalConstraintCount != 0)
                         constraintSolver.step();
                     constraintSolveTime[debugFrame] += System.nanoTime();
+                    iterationCount[debugFrame] = constraintSolver.iterationCount;
 
                     // Physics part II
                     physicsSolveTime[debugFrame] = -System.nanoTime();
@@ -236,18 +238,10 @@ public class PhysicsWorld {
             }
         }
 
+        if(tuner != null)
+            tuner.tune(this::adjustSteps);
+
         debugWrite();
-    }
-
-    public void restPositions() {
-        if(parametersChanged) {
-            constraintSolver.resizeMatrices(totalConstraintCount);
-            parametersChanged = false;
-        }
-
-        restPositionSolveTime = -System.nanoTime();
-        constraintSolver.restPositions();
-        restPositionSolveTime += System.nanoTime();
     }
 
     public List<RigidBody> bodies() {
@@ -272,6 +266,14 @@ public class PhysicsWorld {
             totalEnergy += body.kineticEnergy();
         }
         return totalEnergy;
+    }
+
+    public double maxVelocity() {
+        return physicsSolver.maxVelocity();
+    }
+
+    public double maxAngularVelocity() {
+        return physicsSolver.maxAngularVelocity();
     }
 
     public void updateMass(int rigidBodyIndex, float mass) {

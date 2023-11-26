@@ -56,14 +56,15 @@ public class GasCell {
         return syncId;
     }
 
-    public NbtCompound serialize() {
+    public NbtCompound serialize(boolean withId) {
         NbtCompound tag = new NbtCompound();
         tag.put(NBT_KINETIC_ENERGY, kineticEnergy);
         tag.put(NBT_TOTAL_MOLE_COUNT, totalMoles);
         tag.put(NBT_MOMENTUM_X, momentum.x);
         tag.put(NBT_MOMENTUM_Y, momentum.y);
         tag.put(NBT_MOMENTUM_Z, momentum.z);
-        tag.put(NBT_SYNC_ID, syncId);
+        if(withId)
+            tag.put(NBT_SYNC_ID, syncId);
         return tag;
     }
 
@@ -73,7 +74,8 @@ public class GasCell {
         momentum.z = tag.get(NBT_MOMENTUM_Z);
         kineticEnergy = tag.get(NBT_KINETIC_ENERGY);
         totalMoles = tag.get(NBT_TOTAL_MOLE_COUNT);
-        syncId = tag.get(NBT_SYNC_ID);
+        if(tag.has(NBT_SYNC_ID))
+            syncId = tag.get(NBT_SYNC_ID);
     }
 
     public double pressure() {

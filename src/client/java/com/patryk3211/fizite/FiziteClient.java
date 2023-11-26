@@ -9,6 +9,7 @@ import com.patryk3211.fizite.simulation.ClientGasStorage;
 import com.patryk3211.fizite.simulation.ClientNetworking;
 import com.patryk3211.fizite.simulation.ClientPhysicsStorage;
 import com.patryk3211.fizite.simulation.Simulator;
+import com.patryk3211.fizite.simulation.physics.SimulationTuner;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.*;
@@ -26,6 +27,7 @@ public class FiziteClient implements ClientModInitializer {
 		// Create client storage objects (Their instances are stored statically)
 		final var physics = new ClientPhysicsStorage();
 		final var gas = new ClientGasStorage();
+		physics.physicsSimulation().tuner = new SimulationTuner(physics);
 		physics.addStepHandler(new Simulator.GasStepHandler(gas));
 
 		ClientTickEvents.START_WORLD_TICK.register(ClientPhysicsStorage::onWorldTickStart);

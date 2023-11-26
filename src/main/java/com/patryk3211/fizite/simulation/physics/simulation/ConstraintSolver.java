@@ -44,6 +44,7 @@ public class ConstraintSolver {
     // Profiling data
     public long rightPrepareTime;
     public long solveTime;
+    public int iterationCount;
 
     public ConstraintSolver(List<RigidBody> bodies, List<Constraint> constraints) {
         this.rigidBodies = bodies;
@@ -179,11 +180,13 @@ public class ConstraintSolver {
 
         CommonOps_DDRM.subtract(right, left, rMatrix);
         if(checkError(rMatrix, right)) {
+            iterationCount = 0;
             return false;
         }
 
         pMatrix.setTo(rMatrix);
         for(int i = 0; i < MAX_ITERATIONS; ++i) {
+            iterationCount = i + 1;
             leftCalculator.accept(pMatrix, left);
 
             final double rkMag = squareMag(rMatrix);
@@ -285,57 +288,6 @@ public class ConstraintSolver {
             bodyState.cForce.x = fX;
             bodyState.cForce.y = fY;
             bodyState.cForceA = fA;
-        }
-    }
-
-    public void restPositions() {
-        int constraintIndex = 0;
-        for(final var constraint : constraints) {
-            constraint.calculate(constraintIndex, C, J, JDot);
-//            constraint.restMatrix(constraintIndex, C, J);
-            constraintIndex += constraint.internalConstraintCount();
-        }
-
-        // In this case the qDot matrix is actually just the q,
-        // it stores the bodies positions.
-        for(final var body : rigidBodies) {
-            if(body == null)
-                continue;
-            final var row = body.index() * 3;
-            final var state = body.getState();
-
-            qDot.unsafe_set(row, 0, state.position.x);
-            qDot.unsafe_set(row + 1, 0, state.position.y);
-            qDot.unsafe_set(row + 2, 0, state.positionA);
-        }
-        CommonOps_DSCC.transpose(J, JT, null);
-
-        // Equation:
-        // J * bodyLock * J_T * lambda = -J * qRest * (J * bodyLock) - C
-
-        // [-J * qRest - C], gets simplified to -C because qRest = 0,
-        // it might be useful if I want to calculate the rest positions in steps
-        CommonOps_DSCC.mult(J, qDot, right);
-//        CommonOps_DSCC.mult(J, bodyLock, denseReg1CC);
-//        CommonOps_DDRM.elementMult(right, denseReg1CC);
-        CommonOps_DDRM.addEquals(right, C);
-        CommonOps_DDRM.changeSign(right);
-
-        if (solve(this::makeLeftMassless)) {
-            System.out.println("Failed to solve");
-        }
-        CommonOps_DSCC.mult(JT, lambda, cForce);
-
-        for (final var body : rigidBodies) {
-            if (body == null)
-                continue;
-            final var row = body.index() * 3;
-
-            body.setInitialPosition(
-                    (float) cForce.get(row, 0),
-                    (float) cForce.get(row + 1, 0),
-                    (float) cForce.get(row + 2, 0)
-            );
         }
     }
 }

@@ -14,15 +14,19 @@ public class CapabilitiesBlockEntityTemplate<T extends CapabilitiesBlockEntity> 
         T create(BlockEntityType<T> type, BlockPos pos, BlockState state);
     }
 
+    private record CapabilityLink<S extends Capability, C extends S>(Class<C> clazz, Class<S> as) { }
+
     private FabricBlockEntityTypeBuilder<T> typeBuilder;
 
     private final EntitySupplier<T> supplier;
     private Set<Function<BlockState, ? extends Capability>> capabilities;
+    private Set<CapabilityLink<? extends Capability, ?>> capabilityLinks;
     private BlockEntityType<T> entityType;
     private boolean initialClientSync;
 
     public CapabilitiesBlockEntityTemplate(EntitySupplier<T> supplier) {
         capabilities = new HashSet<>();
+        capabilityLinks = new HashSet<>();
         typeBuilder = FabricBlockEntityTypeBuilder.create(this::create);
         initialClientSync = false;
         this.supplier = supplier;
@@ -30,6 +34,11 @@ public class CapabilitiesBlockEntityTemplate<T extends CapabilitiesBlockEntity> 
 
     public <C extends Capability> CapabilitiesBlockEntityTemplate<T> with(Function<BlockState, C> supplier) {
         capabilities.add(supplier);
+        return this;
+    }
+
+    public <D extends Capability, C extends D> CapabilitiesBlockEntityTemplate<T> with(Class<C> clazz , Class<D> as) {
+        capabilityLinks.add(new CapabilityLink<>(clazz, as));
         return this;
     }
 
@@ -50,6 +59,7 @@ public class CapabilitiesBlockEntityTemplate<T extends CapabilitiesBlockEntity> 
 
     public BlockEntityType<T> bake() {
         capabilities = Collections.unmodifiableSet(capabilities);
+        capabilityLinks = Collections.unmodifiableSet(capabilityLinks);
         entityType = typeBuilder.build();
         typeBuilder = null;
         return entityType;
@@ -59,6 +69,7 @@ public class CapabilitiesBlockEntityTemplate<T extends CapabilitiesBlockEntity> 
         return initialClientSync;
     }
 
+    @SuppressWarnings("unchecked")
     public T create(BlockPos position, BlockState state) {
         final var entity = supplier.create(entityType, position, state);
         entity.setTemplate(this);
@@ -77,6 +88,10 @@ public class CapabilitiesBlockEntityTemplate<T extends CapabilitiesBlockEntity> 
                 capClass = (Class<? extends Capability>) superClass;
             } while (i-- > 0);
         }
+        capabilityLinks.forEach(link -> {
+            final var cap = capabilities.get(link.clazz);
+            capabilities.put(link.as, cap);
+        });
         entity.setCapabilities(capabilities);
 
         return entity;

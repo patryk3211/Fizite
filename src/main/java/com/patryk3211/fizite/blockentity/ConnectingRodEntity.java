@@ -1,7 +1,6 @@
 package com.patryk3211.fizite.blockentity;
 
 import com.patryk3211.fizite.Fizite;
-import com.patryk3211.fizite.item.IWrenchInteraction;
 import com.patryk3211.fizite.simulation.physics.IPhysicsProvider;
 import com.patryk3211.fizite.simulation.physics.PhysicalConnection;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
@@ -19,7 +18,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2f;
 
-public class ConnectingRodEntity extends BlockEntity implements IPhysicsProvider, IWrenchInteraction {
+public class ConnectingRodEntity extends BlockEntity implements IPhysicsProvider {
     private static final Vector2f linearAnchor = new Vector2f(0.5f, 0);
     private static final Vector2f xyAnchor = new Vector2f(-0.5f, 0);
 
@@ -75,11 +74,5 @@ public class ConnectingRodEntity extends BlockEntity implements IPhysicsProvider
     @Nullable
     public Constraint[] internalConstraints() {
         return null;
-    }
-
-    @Override
-    public ActionResult interact(ItemUsageContext context) {
-        Fizite.LOGGER.info(context.getHitPos().toString());
-        return ActionResult.PASS;
     }
 }

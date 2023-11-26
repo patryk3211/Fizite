@@ -5,18 +5,30 @@ import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemUsageContext;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
+import net.minecraft.util.Formatting;
 
 public class Debugger extends Item {
     public Debugger() {
         super(new FabricItemSettings());
     }
 
-    private static void print(boolean client, PlayerEntity receiver, String[] lines, String sender) {
+    private static void print(boolean client, PlayerEntity receiver, Text[] lines, String sender) {
         for(final var line : lines) {
-            final var changedLine = "[Dbg@" + (client ? "C" : "S") + "/" + sender + "] " + line;
-            receiver.sendMessage(Text.of(changedLine));
+            var result = Text.empty().setStyle(Style.EMPTY.withColor(Formatting.GRAY));
+            var header = Text.empty().setStyle(Style.EMPTY.withColor(Formatting.DARK_GRAY));
+            header.append("[Dbg@");
+            header.append(client ?
+                    Text.literal("C").setStyle(Style.EMPTY.withColor(Formatting.GREEN)) :
+                    Text.literal("S").setStyle(Style.EMPTY.withColor(Formatting.YELLOW)));
+            header.append("/");
+            header.append(Text.literal(sender).setStyle(Style.EMPTY.withColor(Formatting.BLUE)));
+            header.append("] ");
+            result.append(header);
+            result.append(line);
+            receiver.sendMessage(result);
         }
     }
 

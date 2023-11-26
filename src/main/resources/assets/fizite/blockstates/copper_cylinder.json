@@ -1,6 +1,10 @@
 {
   "variants": {
-    "part=cylinder": { "model": "fizite:block/copper/cylinder" },
-    "part=piston": { "model":  "fizite:block/template/piston" }
+    "facing=north": { "model": "fizite:block/copper/cylinder" },
+    "facing=south": { "model": "fizite:block/copper/cylinder", "y": 180 },
+    "facing=east": { "model": "fizite:block/copper/cylinder", "y": 90 },
+    "facing=west": { "model": "fizite:block/copper/cylinder", "y": -90 },
+    "facing=up": { "model": "fizite:block/copper/cylinder", "x": -90 },
+    "facing=down": { "model": "fizite:block/copper/cylinder", "x": 90 }
   }
 }
