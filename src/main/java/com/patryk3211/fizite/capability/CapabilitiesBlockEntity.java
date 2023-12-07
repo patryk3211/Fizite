@@ -17,10 +17,15 @@ import java.util.*;
 
 public abstract class CapabilitiesBlockEntity extends BlockEntity implements IDebugOutput {
     private CapabilitiesBlockEntityTemplate<?> template;
-    private Map<Class<? extends Capability>, Capability> capabilities;
+    private Map<Class<? extends Capability>, Capability> capabilityLookup;
+    private List<Capability> orderedCapabilities;
+    final List<Capability> serverTick;
+    final List<Capability> clientTick;
 
     protected CapabilitiesBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
+        serverTick = new LinkedList<>();
+        clientTick = new LinkedList<>();
     }
 
     public static CapabilitiesBlockEntity getEntity(World world, BlockPos pos) {
@@ -34,36 +39,49 @@ public abstract class CapabilitiesBlockEntity extends BlockEntity implements IDe
         this.template = template;
     }
 
-    public final void setCapabilities(Map<Class<? extends Capability>, Capability> capabilities) {
-        this.capabilities = capabilities;
+    public final void setCapabilities(List<Capability> orderedCapabilities) {
+        this.orderedCapabilities = orderedCapabilities;
+        for (Capability cap : orderedCapabilities) {
+            switch (cap.tickOn) {
+                case SERVER -> serverTick.add(cap);
+                case CLIENT -> clientTick.add(cap);
+                case BOTH -> {
+                    serverTick.add(cap);
+                    clientTick.add(cap);
+                }
+            }
+        }
+    }
+
+    public final void setCapabilityLookup(Map<Class<? extends Capability>, Capability> lookup) {
+        this.capabilityLookup = lookup;
     }
 
     public <C extends Capability> boolean hasCapability(Class<C> clazz) {
-        return capabilities.containsKey(clazz);
+        return capabilityLookup.containsKey(clazz);
     }
 
     public <C extends Capability> C getCapability(Class<C> clazz) {
-        return clazz.cast(capabilities.get(clazz));
+        return clazz.cast(capabilityLookup.get(clazz));
     }
 
-    public void onUnload() {
-        for (Capability capability : capabilities.values()) {
-            capability.onUnload();
-        }
+    @Override
+    public void markRemoved() {
+        super.markRemoved();
+        orderedCapabilities.forEach(Capability::onUnload);
     }
 
     @Override
     public void setWorld(World world) {
         super.setWorld(world);
-        for (Capability capability : capabilities.values()) {
-            capability.onLoad();
-        }
+        InitialTicker.add(world, this);
+        orderedCapabilities.forEach(Capability::onLoad);
     }
 
     @Override
     public void readNbt(NbtCompound nbt) {
         super.readNbt(nbt);
-        for (Capability capability : capabilities.values()) {
+        for (Capability capability : orderedCapabilities) {
             final var capNbt = nbt.get(capability.name);
             if(capNbt != null)
                 capability.readNbt(capNbt);
@@ -73,7 +91,7 @@ public abstract class CapabilitiesBlockEntity extends BlockEntity implements IDe
     @Override
     protected void writeNbt(NbtCompound nbt) {
         super.writeNbt(nbt);
-        for (Capability capability : capabilities.values()) {
+        for (Capability capability : orderedCapabilities) {
             final var capNbt = capability.writeNbt();
             if(capNbt != null)
                 nbt.put(capability.name, capNbt);
@@ -90,7 +108,7 @@ public abstract class CapabilitiesBlockEntity extends BlockEntity implements IDe
     public NbtCompound toInitialChunkDataNbt() {
         final var tag = new NbtCompound();
         super.writeNbt(tag);
-        for (Capability capability : capabilities.values()) {
+        for (Capability capability : orderedCapabilities) {
             final var capNbt = capability.initialSyncNbt();
             if(capNbt != null)
                 tag.put(capability.name, capNbt);
@@ -101,11 +119,13 @@ public abstract class CapabilitiesBlockEntity extends BlockEntity implements IDe
     @Override
     public Text[] debugInfo() {
         List<Text> output = new LinkedList<>();
-        Set<Capability> logged = new HashSet<>();
-        for (Capability capability : capabilities.values()) {
-            if(logged.add(capability))
-                capability.debugOutput(output);
+        for (Capability capability : orderedCapabilities) {
+            capability.debugOutput(output);
         }
         return output.toArray(new Text[0]);
+    }
+
+    public void initialTick() {
+        orderedCapabilities.forEach(Capability::initialTick);
     }
 }

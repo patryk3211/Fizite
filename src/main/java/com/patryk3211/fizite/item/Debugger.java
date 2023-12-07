@@ -4,15 +4,20 @@ import com.patryk3211.fizite.utility.IDebugOutput;
 import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemUsageContext;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.Hand;
+import net.minecraft.util.TypedActionResult;
+import net.minecraft.world.World;
 
 public class Debugger extends Item {
     public Debugger() {
-        super(new FabricItemSettings());
+        super(new FabricItemSettings()
+                .maxCount(1));
     }
 
     private static void print(boolean client, PlayerEntity receiver, Text[] lines, String sender) {

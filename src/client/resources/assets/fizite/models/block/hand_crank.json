@@ -1,6 +1,6 @@
 {
 	"credit": "Made with Blockbench",
-	"parent": "minecraft:block",
+	"parent": "minecraft:block/block",
 	"textures": {
 		"0": "fizite:block/piston",
 		"1": "minecraft:block/stripped_spruce_log",

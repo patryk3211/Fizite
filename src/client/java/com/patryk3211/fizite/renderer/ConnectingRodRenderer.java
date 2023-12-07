@@ -2,7 +2,7 @@ package com.patryk3211.fizite.renderer;
 
 import com.patryk3211.fizite.blockentity.ConnectingRodEntity;
 import com.patryk3211.fizite.simulation.ClientPhysicsStorage;
-import com.patryk3211.fizite.utility.DirectionUtilities;
+import com.patryk3211.fizite.simulation.physics.PhysicsCapability;
 import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.block.BlockModelRenderer;
@@ -27,7 +27,10 @@ public class ConnectingRodRenderer implements BlockEntityRenderer<ConnectingRodE
     public void render(ConnectingRodEntity entity, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, int overlay) {
         final var state = entity.getCachedState();
         final var bakedModel = manager.getModel(state);
-        final var body = entity.bodies()[0];
+
+        final var physicsCap = entity.getCapability(PhysicsCapability.class);
+        assert physicsCap != null;
+        final var body = physicsCap.body(0);
 
         final var facing = state.get(Properties.HORIZONTAL_FACING).rotateYCounterclockwise();
         final var axisDir = facing.getDirection();
@@ -43,7 +46,7 @@ public class ConnectingRodRenderer implements BlockEntityRenderer<ConnectingRodE
             angle = -angle;
         }
 
-        final var posX = ConnectingRodEntity.ORIGIN_X - p1.x;
+        final var posX = 1.0 - p1.x; //ConnectingRodEntity.ORIGIN_X - p1.x;
         double x = 0, z = 0;
         switch (facing) {
             case EAST ->  z = -posX;

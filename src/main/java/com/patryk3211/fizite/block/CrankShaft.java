@@ -16,6 +16,7 @@ import net.minecraft.util.StringIdentifiable;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
@@ -34,7 +35,12 @@ public class CrankShaft extends ModdedBlock implements BlockEntityProvider {
     }
     public static EnumProperty<ModelPart> MODEL_PART_PROPERTY = EnumProperty.of("part", ModelPart.class);
 
-    private static final VoxelShape BB_Z = createCuboidShape(1, 0, 2, 15, 12, 14);
+    private static final VoxelShape BB_Z =
+            VoxelShapes.union(
+                    createCuboidShape(1, 0, 2, 15, 12, 14),
+                    createCuboidShape(0, 6, 6, 1, 10, 10),
+                    createCuboidShape(15, 6, 6, 16, 10, 10)
+            ).simplify();
 
     public CrankShaft() {
         super(FabricBlockSettings.create().strength(5.0f));
@@ -58,16 +64,16 @@ public class CrankShaft extends ModdedBlock implements BlockEntityProvider {
     @Nullable
     @Override
     public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-        return new CrankShaftEntity(pos, state);
+        return CrankShaftEntity.TEMPLATE.create(pos, state);
     }
 
     @Override
     public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
         return BB_Z;
     }
-
-    @Override
-    protected void onBlockRemoved(BlockState state, World world, BlockPos pos) {
-        PhysicsStorage.get(world).clearPosition(pos);
-    }
+//
+//    @Override
+//    protected void onBlockRemoved(BlockState state, World world, BlockPos pos) {
+//        PhysicsStorage.get(world).clearPosition(pos);
+//    }
 }

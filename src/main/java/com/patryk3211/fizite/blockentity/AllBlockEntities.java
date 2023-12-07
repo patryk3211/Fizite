@@ -12,11 +12,11 @@ public class AllBlockEntities implements AutoRegistryContainer<BlockEntityType<?
 
     public static final BlockEntityType<CylinderEntity> CYLINDER_ENTITY = CylinderEntity.TEMPLATE.bake();
 
-    public static final BlockEntityType<ConnectingRodEntity> CONNECTING_ROD_ENTITY = FabricBlockEntityTypeBuilder.create(ConnectingRodEntity::new, AllBlocks.CONNECTING_ROD).build();
+    public static final BlockEntityType<ConnectingRodEntity> CONNECTING_ROD_ENTITY = ConnectingRodEntity.TEMPLATE.bake();
 
-    public static final BlockEntityType<CrankShaftEntity> CRANK_SHAFT_ENTITY = FabricBlockEntityTypeBuilder.create(CrankShaftEntity::new, AllBlocks.CRANK_SHAFT).build();
+    public static final BlockEntityType<CrankShaftEntity> CRANK_SHAFT_ENTITY = CrankShaftEntity.TEMPLATE.bake();
 
-    public static final BlockEntityType<HandCrankEntity> HAND_CRANK_ENTITY = FabricBlockEntityTypeBuilder.create(HandCrankEntity::new, AllBlocks.HAND_CRANK).build();
+    public static final BlockEntityType<HandCrankEntity> HAND_CRANK_ENTITY = HandCrankEntity.TEMPLATE.bake();
 
 
     @Override

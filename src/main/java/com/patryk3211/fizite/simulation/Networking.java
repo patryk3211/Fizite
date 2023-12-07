@@ -5,12 +5,12 @@ import com.patryk3211.fizite.capability.CapabilitiesBlockEntity;
 import com.patryk3211.fizite.simulation.gas.GasCapability;
 import com.patryk3211.fizite.simulation.gas.GasCell;
 import com.patryk3211.fizite.simulation.physics.IPhysicsProvider;
+import com.patryk3211.fizite.simulation.physics.PhysicsCapability;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import io.wispforest.owo.network.OwoNetChannel;
 import io.wispforest.owo.network.ServerAccess;
 import io.wispforest.owo.network.serialization.PacketBufSerializer;
 import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -28,7 +28,7 @@ public class Networking {
     public record ClientSyncState(int[] bodyIndices, Vec2f[] positions, Vec2f[] velocities, float[] angles, float[] angularVelocities) { }
     public record ClientGetSimulation(BlockPos[] entities, int[][] rigidBodyIndices) { }
     public record ClientSyncGasState(GasState[] states) { }
-    public record ServerRequestBlockEntity(BlockPos entityPosition, Identifier world) { }
+    public record ServerRequestBlockEntity(BlockPos entityPosition) { }
     public record ServerAddGasSyncPosition(BlockPos position) { }
     public record ServerRemoveGasSyncPosition(long id) { }
 
@@ -148,11 +148,11 @@ public class Networking {
             return;
         }
         if(!(entity instanceof final CapabilitiesBlockEntity capEntity)) {
-            Fizite.LOGGER.warn("Requested gas sync position is not a capable block entity");
+            Fizite.LOGGER.warn("Requested gas sync position (" + packet.position.toString() + ") is not a capable block entity");
             return;
         }
         if(!capEntity.hasCapability(GasCapability.class)) {
-            Fizite.LOGGER.warn("Requested gas sync position is not a gas capable entity");
+            Fizite.LOGGER.warn("Requested gas sync position (" + packet.position.toString() + ") is not a gas capable entity");
             return;
         }
 
@@ -161,28 +161,27 @@ public class Networking {
     }
 
     private static void handleRequestBlockEntity(ServerRequestBlockEntity packet, ServerAccess access) {
-        final var server = access.runtime();
-        final var world = server.getWorld(RegistryKey.of(RegistryKeys.WORLD, packet.world));
-        if(world == null) {
-            Fizite.LOGGER.error("Server doesn't have a world with key " + packet.world);
-            return;
-        }
-        final var provider = PhysicsStorage.get(world).getProvider(packet.entityPosition);
-        if(provider == null) {
+        final var world = access.player().getWorld(); //server.getWorld(RegistryKey.of(RegistryKeys.WORLD, packet.world));
+//        if(world == null) {
+//            Fizite.LOGGER.error("Server doesn't have a world with key " + packet.world);
+//            return;
+//        }
+        final var capability = PhysicsStorage.get(world).getCapability(packet.entityPosition);
+        if(capability == null) {
             setWaitFlag(world.getRegistryKey(), packet.entityPosition, access.player(), WaitListEntry.PHYSICS_FLAG);
             return;
         }
 
-        final var bodies = provider.bodies();
-        final int[] indices = new int[bodies.length];
-        for(int i = 0; i < bodies.length; ++i) {
-            indices[i] = bodies[i].index();
+//        final var bodies = capability.bo;
+        final int[] indices = new int[capability.bodyCount()];
+        for(int i = 0; i < indices.length; ++i) {
+            indices[i] = capability.body(i).index();
         }
 
         CHANNEL.serverHandle(access.player()).send(new ClientAddBlockEntity(packet.entityPosition, indices));
     }
 
-    public static void physicsAdded(RegistryKey<World> world, BlockPos pos, IPhysicsProvider provider) {
+    public static void physicsAdded(RegistryKey<World> world, BlockPos pos, PhysicsCapability capability) {
         final var worldEntry = waitingForEntity.get(world);
         if(worldEntry == null)
             return;
@@ -190,10 +189,9 @@ public class Networking {
         if(entry == null)
             return;
 
-        final var bodies = provider.bodies();
-        final int[] indices = new int[bodies.length];
-        for(int i = 0; i < bodies.length; ++i) {
-            indices[i] = bodies[i].index();
+        final int[] indices = new int[capability.bodyCount()];
+        for(int i = 0; i < indices.length; ++i) {
+            indices[i] = capability.body(i).index();
         }
 
         final var packet = new ClientAddBlockEntity(pos, indices);

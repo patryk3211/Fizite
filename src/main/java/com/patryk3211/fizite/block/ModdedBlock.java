@@ -1,5 +1,6 @@
 package com.patryk3211.fizite.block;
 
+import com.patryk3211.fizite.capability.CapabilitiesBlockEntity;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.state.property.BooleanProperty;
@@ -23,20 +24,13 @@ public class ModdedBlock extends Block {
 
             // Remove block entity if one is provided
             if(state.hasBlockEntity()) {
+//                final var entity = world.getBlockEntity(pos);
+//                if(entity instanceof final CapabilitiesBlockEntity capEntity) {
+////                    entity.
+//                }
                 world.removeBlockEntity(pos);
+//                world.removeBlockEntity(pos);
             }
         }
-    }
-
-    public static BooleanProperty propertyFromDirection(@NotNull Direction dir) {
-        return switch(dir) {
-            case NORTH -> Properties.NORTH;
-            case SOUTH -> Properties.SOUTH;
-            case EAST -> Properties.EAST;
-            case WEST -> Properties.WEST;
-            case UP -> Properties.UP;
-            case DOWN -> Properties.DOWN;
-            default -> throw new IllegalArgumentException("Unknown direction, cannot get property");
-        };
     }
 }

@@ -2,6 +2,7 @@ package com.patryk3211.fizite;
 
 import com.patryk3211.fizite.blockentity.AllBlockEntities;
 import com.patryk3211.fizite.capability.CapabilitiesBlockEntity;
+import com.patryk3211.fizite.capability.InitialTicker;
 import com.patryk3211.fizite.renderer.ConnectingRodRenderer;
 import com.patryk3211.fizite.renderer.CrankShaftRenderer;
 import com.patryk3211.fizite.renderer.HandCrankRenderer;
@@ -30,12 +31,15 @@ public class FiziteClient implements ClientModInitializer {
 		physics.physicsSimulation().tuner = new SimulationTuner(physics);
 		physics.addStepHandler(new Simulator.GasStepHandler(gas));
 
+		InitialTicker.clientTicker = new InitialTicker();
+		ClientTickEvents.START_WORLD_TICK.register(world -> InitialTicker.clientTicker.tickAll());
+
 		ClientTickEvents.START_WORLD_TICK.register(ClientPhysicsStorage::onWorldTickStart);
-		ClientBlockEntityEvents.BLOCK_ENTITY_UNLOAD.register(ClientPhysicsStorage::onBlockEntityUnload);
-		ClientBlockEntityEvents.BLOCK_ENTITY_UNLOAD.register((entity, world) -> {
-			if(entity instanceof final CapabilitiesBlockEntity capEntity)
-				capEntity.onUnload();
-		});//ClientGasStorage::onBlockEntityUnload);
+//		ClientBlockEntityEvents.BLOCK_ENTITY_UNLOAD.register(ClientPhysicsStorage::onBlockEntityUnload);
+//		ClientBlockEntityEvents.BLOCK_ENTITY_UNLOAD.register((entity, world) -> {
+//			if(entity instanceof final CapabilitiesBlockEntity capEntity)
+//				capEntity.onUnload();
+//		});//ClientGasStorage::onBlockEntityUnload);
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             ClientPhysicsStorage.onDisconnect();
             ClientGasStorage.onDisconnect();

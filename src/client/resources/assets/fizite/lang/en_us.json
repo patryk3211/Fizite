@@ -1,0 +1,14 @@
+{
+  "wrench.fizite.connect.start": "Select the second connection point",
+  "wrench.fizite.connect.success": "Connected successfully!",
+  "wrench.fizite.connect.success_disconnect": "Disconnected successfully!",
+  "wrench.fizite.connect.fail": "Connection failed!",
+  "wrench.fizite.connect.fail_incompatible": "Incompatible connection between %s and %s",
+  "wrench.fizite.connect.fail_connected": "Connection already exists at this point!",
+
+  "wrench.fizite.physics.fail_incompatible": "Cannot create a joint between %s and %s anchors",
+  "wrench.fizite.physics.fail_same_entity": "Cannot make a connection on a single block",
+
+  "item.fizite.wrench": "Wrench",
+  "item.fizite.debugger": "Debugger"
+}

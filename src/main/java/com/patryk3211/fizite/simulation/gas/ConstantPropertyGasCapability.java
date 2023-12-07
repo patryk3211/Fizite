@@ -41,9 +41,4 @@ public class ConstantPropertyGasCapability extends GasCapability {
     public double flowConstant(Direction dir) {
         return flowConstant;
     }
-
-    @Override
-    public int deriveSuperclasses() {
-        return 1;
-    }
 }

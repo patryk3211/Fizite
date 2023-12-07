@@ -5,6 +5,7 @@ import com.patryk3211.fizite.simulation.gas.GasSimulator;
 import com.patryk3211.fizite.simulation.gas.GasStorage;
 import com.patryk3211.fizite.simulation.gas.ServerGasStorage;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
+import com.patryk3211.fizite.simulation.physics.ServerPhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.SimulationTuner;
 import com.patryk3211.fizite.simulation.physics.simulation.IPhysicsStepHandler;
 import net.minecraft.server.MinecraftServer;
@@ -40,14 +41,16 @@ public class Simulator {
                     // Wait for start signal
                     solveStart.acquire();
                     // Simulate physics
-                    PhysicsStorage.simulateAll();
+                    ServerPhysicsStorage.simulateAll();
                     // Signal end of simulation tick
                     solveFinished.release();
                 } catch (InterruptedException e) {
                     Fizite.LOGGER.error(e.getMessage());
+                    e.printStackTrace(System.err);
                 } catch (Exception e) {
                     // Make sure we don't deadlock the main thread after an error
                     Fizite.LOGGER.error(e.getMessage());
+                    e.printStackTrace(System.err);
                     solveFinished.release();
                 }
             }
@@ -61,13 +64,13 @@ public class Simulator {
     public static void stopWorker() {
         Fizite.LOGGER.info("Stopping simulation thread");
         solverRunning = false;
-        PhysicsStorage.clearSimulations();
+        ServerPhysicsStorage.clearSimulations();
         tickCount = 0;
     }
 
     @SuppressWarnings("unused")
     public static void onWorldStart(MinecraftServer server, ServerWorld world) {
-        final var physics = PhysicsStorage.addToWorld(world);
+        final var physics = ServerPhysicsStorage.addToWorld(world);
         final var gas = ServerGasStorage.addToWorld(world);
         physics.physicsSimulation().tuner = new SimulationTuner(physics);
         physics.addStepHandler(new GasStepHandler(gas));
@@ -85,7 +88,7 @@ public class Simulator {
             solveFinished.acquire();
             if(tickCount++ >= 20 * 2) {
                 tickCount = 0;
-                PhysicsStorage.syncStates(server);
+                ServerPhysicsStorage.syncStates(server);
                 Networking.sync();
             }
         } catch (InterruptedException e) {

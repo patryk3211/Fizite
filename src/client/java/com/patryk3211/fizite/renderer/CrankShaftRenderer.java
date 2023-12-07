@@ -3,6 +3,7 @@ package com.patryk3211.fizite.renderer;
 import com.patryk3211.fizite.block.CrankShaft;
 import com.patryk3211.fizite.blockentity.CrankShaftEntity;
 import com.patryk3211.fizite.simulation.ClientPhysicsStorage;
+import com.patryk3211.fizite.simulation.physics.PhysicsCapability;
 import com.patryk3211.fizite.utility.DirectionUtilities;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.block.BlockRenderManager;
@@ -23,7 +24,7 @@ public class CrankShaftRenderer implements BlockEntityRenderer<CrankShaftEntity>
     public void render(CrankShaftEntity entity, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, int overlay) {
         matrices.push();
         final var state = entity.getCachedState().with(CrankShaft.MODEL_PART_PROPERTY, CrankShaft.ModelPart.DYNAMIC);
-        final var body = entity.bodies()[0];
+        final var body = entity.getCapability(PhysicsCapability.class).body(0);
 
         final var rotation = new Quaternionf();
         final var normal = DirectionUtilities.getAxisNormal(state.get(Properties.HORIZONTAL_FACING).rotateYClockwise().getAxis());

@@ -227,16 +227,17 @@ public class PhysicsWorld {
         }
         totalTime += System.nanoTime();
 
-        for(final var body : rigidBodies) {
-            if(body == null)
-                continue;
-            if(body.externalForceReset) {
-                final var state = body.getState();
-                state.extForce.x = 0;
-                state.extForce.y = 0;
-                state.extForceA = 0;
-            }
-        }
+//        for(final var body : rigidBodies) {
+//            if(body == null)
+//                continue;
+//            if(body.externalForceReset) {
+//                final var state = body.getState();
+//                if(state.extForceA != 0) System.out.println("Reset angular force to 0");
+//                state.extForce.x = 0;
+//                state.extForce.y = 0;
+//                state.extForceA = 0;
+//            }
+//        }
 
         if(tuner != null)
             tuner.tune(this::adjustSteps);
@@ -276,11 +277,11 @@ public class PhysicsWorld {
         return physicsSolver.maxAngularVelocity();
     }
 
-    public void updateMass(int rigidBodyIndex, float mass) {
+    public void updateMass(int rigidBodyIndex, float invMass1, float invMass2, float invMass3) {
         if(!parametersChanged) {
             // If parameters have changed then we have to rebuild
             // the entire mass matrix anyway
-            constraintSolver.updateMassMatrix(rigidBodyIndex, mass);
+            constraintSolver.updateMassMatrix(rigidBodyIndex, invMass1, invMass2, invMass3);
         }
     }
 

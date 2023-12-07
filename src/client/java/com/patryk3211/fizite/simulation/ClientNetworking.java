@@ -1,9 +1,11 @@
 package com.patryk3211.fizite.simulation;
 
 import com.patryk3211.fizite.Fizite;
+import com.patryk3211.fizite.capability.CapabilitiesBlockEntity;
 import com.patryk3211.fizite.simulation.gas.GasCapability;
 import com.patryk3211.fizite.simulation.gas.GasCell;
 import com.patryk3211.fizite.simulation.physics.IPhysicsProvider;
+import com.patryk3211.fizite.simulation.physics.PhysicsCapability;
 import io.wispforest.owo.network.ClientAccess;
 import io.wispforest.owo.network.OwoNetChannel;
 import net.minecraft.registry.RegistryKey;
@@ -33,8 +35,8 @@ public class ClientNetworking {
         Networking.CHANNEL.clientHandle().send(packet);
     }
 
-    public static void sendBlockEntityRequest(BlockPos position, RegistryKey<World> worldKey) {
-        Networking.CHANNEL.clientHandle().send(new Networking.ServerRequestBlockEntity(position, worldKey.getValue()));
+    public static void sendBlockEntityRequest(BlockPos position) {
+        Networking.CHANNEL.clientHandle().send(new Networking.ServerRequestBlockEntity(position));
     }
 
     private static void handleGasSync(Networking.ClientSyncGasState packet, ClientAccess access) {
@@ -57,13 +59,18 @@ public class ClientNetworking {
         }
         final var positions = packet.entities();
         for(int i = 0; i < positions.length; ++i) {
-            final var entity = client.world.getBlockEntity(positions[i]);
-            if(!(entity instanceof IPhysicsProvider)) {
-                Fizite.LOGGER.error("Client block entity is not a physics provider");
+            final var entity = CapabilitiesBlockEntity.getEntity(client.world, positions[i]);
+            if(entity == null) {
+                Fizite.LOGGER.error("Client block entity doesn't exist at " + positions[i]);
+                continue;
+            }
+            final var physCap = entity.getCapability(PhysicsCapability.class);
+            if(physCap == null) {
+                Fizite.LOGGER.error("Client block entity doesn't have the physics capability");
                 continue;
             }
             final var indices = packet.rigidBodyIndices()[i];
-            ClientPhysicsStorage.get().addBlockEntity(entity, indices);
+            ClientPhysicsStorage.get().add(positions[i], physCap, indices);
         }
     }
 
@@ -73,13 +80,18 @@ public class ClientNetworking {
             Fizite.LOGGER.error("Client receive block entity data but doesn't have a world");
             return;
         }
-        final var entity = client.world.getBlockEntity(packet.entityPosition());
-        if(!(entity instanceof IPhysicsProvider)) {
-            Fizite.LOGGER.error("Client block entity is not a physics provider");
+        final var entity = CapabilitiesBlockEntity.getEntity(client.world, packet.entityPosition());
+        if(entity == null) {
+            Fizite.LOGGER.error("Client block entity doesn't exist at " + packet.entityPosition());
+            return;
+        }
+        final var physCap = entity.getCapability(PhysicsCapability.class);
+        if(physCap == null) {
+            Fizite.LOGGER.error("Client block entity doesn't have the physics capability");
             return;
         }
         final var indices = packet.rigidBodyIndices();
-        ClientPhysicsStorage.get().addBlockEntity(entity, indices);
+        ClientPhysicsStorage.get().add(packet.entityPosition(), physCap, indices);
     }
 
     private static void handleSyncState(Networking.ClientSyncState packet, ClientAccess access) {

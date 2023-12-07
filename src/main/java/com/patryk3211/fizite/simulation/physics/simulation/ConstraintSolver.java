@@ -19,7 +19,6 @@ public class ConstraintSolver {
     private DMatrixRMaj W;
     private DMatrixRMaj C;
     private DMatrixRMaj CDot;
-    private DMatrixRMaj bodyLock;
 
     private DMatrixSparseCSC JT;
 
@@ -51,10 +50,10 @@ public class ConstraintSolver {
         this.constraints = constraints;
     }
 
-    public void updateMassMatrix(int index, float mass) {
-        W.set(index * 3, 0, 1.0 / mass);
-        W.set(index * 3 + 1, 0, 1.0 / mass);
-        W.set(index * 3 + 2, 0, 1.0 / mass);
+    public void updateMassMatrix(int index, float invMass1, float invMass2, float invMass3) {
+        W.set(index * 3, 0, invMass1);
+        W.set(index * 3 + 1, 0, invMass2);
+        W.set(index * 3 + 2, 0, invMass3);
     }
 
     public void resizeMatrices(int totalConstraintCount) {
@@ -66,20 +65,9 @@ public class ConstraintSolver {
             if(body == null)
                 continue;
             final var row = body.index() * 3;
-            W.set(row, 0, 1.0 / body.getMass());
-            W.set(row + 1, 0, 1.0 / body.getMass());
-            // TODO: Change this to moment of inertia
-            W.set(row + 2, 0, 1.0 / body.getMass());
-        }
-        bodyLock = new DMatrixRMaj(bodyCount * 3, 1);
-        for(final var body : rigidBodies) {
-            if(body == null)
-                continue;
-            final var row = body.index() * 3;
-            final var value = body.isInitialized() ? 0 : 1;
-            bodyLock.set(row, 0, value);
-            bodyLock.set(row + 1, 0, value);
-            bodyLock.set(row + 2, 0, value);
+            W.set(row, 0, body.posInvMass());
+            W.set(row + 1, 0, body.posInvMass());
+            W.set(row + 2, 0, body.rotInvMass());
         }
 
         // Create matrices with new sizes
@@ -133,8 +121,6 @@ public class ConstraintSolver {
 
         pMatrix = null;
         rMatrix = null;
-
-        bodyLock = null;
     }
 
     private static final double MAX_ERROR = 1E-4;
@@ -157,12 +143,6 @@ public class ConstraintSolver {
     private void makeLeft(DMatrixRMaj x, DMatrixRMaj output) {
         CommonOps_DSCC.mult(JT, x, denseReg1BC);
         CommonOps_DDRM.elementMult(denseReg1BC, W);
-        CommonOps_DSCC.mult(J, denseReg1BC, output);
-    }
-
-    private void makeLeftMassless(DMatrixRMaj x, DMatrixRMaj output) {
-        CommonOps_DSCC.mult(JT, x, denseReg1BC);
-//        CommonOps_DDRM.elementMult(denseReg1BC, bodyLock);
         CommonOps_DSCC.mult(J, denseReg1BC, output);
     }
 
@@ -281,9 +261,10 @@ public class ConstraintSolver {
             final var fA = cForce.get(row + 2, 0);
 
             final var bodyState = body.getState();
-            bodyState.acceleration.x = (float) ((fX + bodyState.extForce.x) / body.getMass());
-            bodyState.acceleration.y = (float) ((fY + bodyState.extForce.y) / body.getMass());
-            bodyState.accelerationA = (float) ((fA + bodyState.extForceA) / body.getMass());
+            bodyState.acceleration.x = (float) ((fX + bodyState.extForce.x) * body.posInvMass());
+            bodyState.acceleration.y = (float) ((fY + bodyState.extForce.y) * body.posInvMass());
+            bodyState.accelerationA = (float) ((fA + bodyState.extForceA) * body.rotInvMass());
+//            if(bodyState.extForceA != 0) System.out.println("Angular Force");
 
             bodyState.cForce.x = fX;
             bodyState.cForce.y = fY;

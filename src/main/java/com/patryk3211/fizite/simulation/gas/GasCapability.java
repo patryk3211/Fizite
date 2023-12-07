@@ -1,5 +1,6 @@
 package com.patryk3211.fizite.simulation.gas;
 
+import com.patryk3211.fizite.Fizite;
 import com.patryk3211.fizite.capability.ConnectableCapability;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
@@ -7,6 +8,7 @@ import net.minecraft.nbt.NbtList;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Objects;
@@ -39,7 +41,7 @@ public abstract class GasCapability extends ConnectableCapability<GasCapability>
     }
 
     @Override
-    public void readNbt(NbtElement tag) {
+    public void readNbt(@NotNull NbtElement tag) {
         assert tag instanceof NbtCompound;
         final var compound = (NbtCompound) tag;
         super.readNbt(compound.get("mask"));
@@ -77,7 +79,7 @@ public abstract class GasCapability extends ConnectableCapability<GasCapability>
     }
 
     @Override
-    public void connect(Direction dir, GasCapability connectTo) {
+    public boolean connect(Direction dir, GasCapability connectTo) {
         Objects.requireNonNull(entity.getWorld());
 
         final var oDir = dir.getOpposite();
@@ -88,11 +90,16 @@ public abstract class GasCapability extends ConnectableCapability<GasCapability>
         GasStorage.get(entity.getWorld()).add(boundary);
         boundaries[dir.getId()] = boundary;
         connectTo.boundaries[oDir.getId()] = boundary;
+        return true;
     }
 
     @Override
     public void disconnect(Direction dir, GasCapability disconnectFrom) {
         Objects.requireNonNull(entity.getWorld());
+        if(boundaries[dir.getId()] == null) {
+            Fizite.LOGGER.error("Boundary at " + dir + " is already null");
+            return;
+        }
 
         final var oDir = dir.getOpposite();
         GasStorage.get(entity.getWorld()).remove(boundaries[dir.getId()]);
@@ -135,10 +142,11 @@ public abstract class GasCapability extends ConnectableCapability<GasCapability>
 
     @Override
     public void debugOutput(List<Text> output) {
+        output.add(Text.literal("Gas Capability:"));
         int index = 0;
         for (GasCell cell : cells()) {
-            output.add(Text.of(String.format("[%d] Pressure = %.1f Pa", index, cell.pressure())));
-            output.add(Text.of(String.format("[%d] Temperature = %.2f K", index, cell.temperature())));
+            output.add(Text.of(String.format("  [%d] Pressure = %.1f Pa", index, cell.pressure())));
+            output.add(Text.of(String.format("  [%d] Temperature = %.2f K", index, cell.temperature())));
             ++index;
         }
     }

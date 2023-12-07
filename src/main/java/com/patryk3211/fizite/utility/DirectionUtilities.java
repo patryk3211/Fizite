@@ -1,8 +1,11 @@
 package com.patryk3211.fizite.utility;
 
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
+import org.jetbrains.annotations.NotNull;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
@@ -57,8 +60,20 @@ public class DirectionUtilities {
             VoxelShape shape = VoxelShapes.empty();
             for(final var cube : baseCuboids)
                 shape = VoxelShapes.union(shape, transformShape(cube, dir));
-            result[dir.getId()] = shape;
+            result[dir.getId()] = shape.simplify();
         }
         return result;
+    }
+
+    public static BooleanProperty asProperty(@NotNull Direction dir) {
+        return switch(dir) {
+            case NORTH -> Properties.NORTH;
+            case SOUTH -> Properties.SOUTH;
+            case EAST -> Properties.EAST;
+            case WEST -> Properties.WEST;
+            case UP -> Properties.UP;
+            case DOWN -> Properties.DOWN;
+            default -> throw new IllegalArgumentException("Unknown direction, cannot get property");
+        };
     }
 }
