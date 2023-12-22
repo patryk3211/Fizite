@@ -2,12 +2,10 @@ package com.patryk3211.fizite;
 
 import com.patryk3211.fizite.block.AllBlocks;
 import com.patryk3211.fizite.blockentity.AllBlockEntities;
-import com.patryk3211.fizite.capability.CapabilitiesBlockEntity;
-import com.patryk3211.fizite.capability.InitialTicker;
+import com.patryk3211.fizite.capability.OneTimeTicker;
 import com.patryk3211.fizite.item.AllItems;
 import com.patryk3211.fizite.simulation.Simulator;
 import com.patryk3211.fizite.simulation.Networking;
-import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.ServerPhysicsStorage;
 import com.patryk3211.fizite.utility.DebugCommands;
 import io.wispforest.owo.registration.reflect.FieldRegistrationHandler;
@@ -15,9 +13,6 @@ import net.fabricmc.api.ModInitializer;
 
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.*;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +32,7 @@ public class Fizite implements ModInitializer {
 		ServerWorldEvents.LOAD.register(Simulator::onWorldStart);
 
 		ServerTickEvents.START_SERVER_TICK.register(Simulator::onServerTickStart);
-		ServerTickEvents.START_WORLD_TICK.register(InitialTicker::onWorldTickStart);
+		ServerTickEvents.START_WORLD_TICK.register(OneTimeTicker::onWorldTickStart);
 		ServerTickEvents.END_SERVER_TICK.register(Simulator::onServerTickEnd);
 		ServerTickEvents.END_WORLD_TICK.register(ServerPhysicsStorage::onWorldTickEnd);
 

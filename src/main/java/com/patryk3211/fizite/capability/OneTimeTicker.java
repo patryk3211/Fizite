@@ -10,18 +10,18 @@ import java.io.File;
 import java.util.LinkedList;
 import java.util.Queue;
 
-public class InitialTicker extends PersistentState {
-    private static final Type<InitialTicker> TYPE = new Type<>(InitialTicker::new, nbt -> new InitialTicker(), null);
-    private static final String ID = Fizite.MOD_ID + ":initial_ticker";
+public class OneTimeTicker extends PersistentState {
+    private static final Type<OneTimeTicker> TYPE = new Type<>(OneTimeTicker::new, nbt -> new OneTimeTicker(), null);
+    private static final String ID = Fizite.MOD_ID + ":one_time_ticker";
 
-    public static InitialTicker clientTicker;
+    public static OneTimeTicker clientTicker;
 
     private final Queue<CapabilitiesBlockEntity> entities = new LinkedList<>();
 
     public static void add(World world, CapabilitiesBlockEntity entity) {
         if(!world.isClient) {
             final var serverWorld = (ServerWorld) world;
-            final InitialTicker storage = serverWorld.getPersistentStateManager().getOrCreate(TYPE, ID);
+            final OneTimeTicker storage = serverWorld.getPersistentStateManager().getOrCreate(TYPE, ID);
             storage.entities.add(entity);
         } else {
             clientTicker.entities.add(entity);
@@ -43,7 +43,7 @@ public class InitialTicker extends PersistentState {
     }
 
     public static void onWorldTickStart(ServerWorld world) {
-        final InitialTicker ticker = world.getPersistentStateManager().getOrCreate(TYPE, ID);
+        final OneTimeTicker ticker = world.getPersistentStateManager().getOrCreate(TYPE, ID);
         ticker.tickAll();
     }
 }

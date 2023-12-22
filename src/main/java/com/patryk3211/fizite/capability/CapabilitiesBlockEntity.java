@@ -74,7 +74,7 @@ public abstract class CapabilitiesBlockEntity extends BlockEntity implements IDe
     @Override
     public void setWorld(World world) {
         super.setWorld(world);
-        InitialTicker.add(world, this);
+        OneTimeTicker.add(world, this);
         orderedCapabilities.forEach(Capability::onLoad);
     }
 

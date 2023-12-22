@@ -28,19 +28,6 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 public abstract class PneumaticCylinder extends ModdedBlock implements BlockEntityProvider, ITieredBlock {
-//    public enum ModelPart implements StringIdentifiable {
-//        CYLINDER, PISTON;
-//
-//        @Override
-//        public String asString() {
-//            return switch(this) {
-//                case CYLINDER -> "cylinder";
-//                case PISTON -> "piston";
-//            };
-//        }
-//    }
-//    public static final EnumProperty<ModelPart> MODEL_PART_PROPERTY = EnumProperty.of("part", ModelPart.class);
-
     private static final VoxelShape[] SHAPES = DirectionUtilities.makeFacingShapes(
             createCuboidShape(4, 4, 0, 12, 12, 15),
             createCuboidShape(6, 6, 15, 10, 10, 16)
@@ -57,14 +44,10 @@ public abstract class PneumaticCylinder extends ModdedBlock implements BlockEnti
         this.pistonArea = pistonArea;
         this.strokeLength = strokeLength;
         this.pistonTopVolume = pistonTopVolume;
-
-//        setDefaultState(getDefaultState());
-//                .with(MODEL_PART_PROPERTY, ModelPart.CYLINDER));
     }
 
     @Override
     protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-//        builder.add(MODEL_PART_PROPERTY);
         builder.add(Properties.FACING);
     }
 
@@ -79,15 +62,6 @@ public abstract class PneumaticCylinder extends ModdedBlock implements BlockEnti
     public BlockState getPlacementState(ItemPlacementContext ctx) {
         return getDefaultState().with(Properties.FACING, ctx.getPlayerLookDirection());
     }
-
-    //    @Override
-//    protected void onBlockRemoved(BlockState state, World world, BlockPos pos) {
-//        if(world instanceof final ServerWorld serverWorld) {
-//            final GasStorage boundaries = GasStorage.get(serverWorld);
-//            boundaries.clearPosition(pos);
-//        }
-//        PhysicsStorage.get(world).clearPosition(pos);
-//    }
 
     public float getPistonArea() {
         return pistonArea;

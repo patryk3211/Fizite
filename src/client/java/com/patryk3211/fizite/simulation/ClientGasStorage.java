@@ -46,7 +46,8 @@ public class ClientGasStorage extends GasStorage {
             final var cell = newCells.remove();
             if(cell.getSyncId() == 0)
                 newCells.add(cell);
-            gasCellSync.put(cell.getSyncId(), cell);
+            else
+                gasCellSync.put(cell.getSyncId(), cell);
         }
         final var cell = gasCellSync.get(id);
         if(cell != null)

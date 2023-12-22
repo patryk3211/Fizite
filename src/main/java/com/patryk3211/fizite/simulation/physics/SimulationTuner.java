@@ -19,7 +19,7 @@ public class SimulationTuner {
     public void tune(Consumer<Integer> stepApplicator) {
         final var currentSteps = physics.stepCount();
         final var currentStepTime = Simulator.TICK_RATE / currentSteps;
-        final var maxDelta = Math.max(physics.maxVelocity(), physics.maxAngularVelocity()) * currentStepTime;
+        final var maxDelta = Math.max(Math.abs(physics.maxVelocity()), Math.abs(physics.maxAngularVelocity())) * currentStepTime;
 
         var newSteps = currentSteps;
         if(maxDelta > 2) {

@@ -3,6 +3,7 @@ package com.patryk3211.fizite.renderer;
 import com.patryk3211.fizite.blockentity.ConnectingRodEntity;
 import com.patryk3211.fizite.simulation.ClientPhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.PhysicsCapability;
+import com.patryk3211.fizite.utility.DirectionUtilities;
 import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.block.BlockModelRenderer;
@@ -32,32 +33,32 @@ public class ConnectingRodRenderer implements BlockEntityRenderer<ConnectingRodE
         assert physicsCap != null;
         final var body = physicsCap.body(0);
 
-        final var facing = state.get(Properties.HORIZONTAL_FACING).rotateYCounterclockwise();
-        final var axisDir = facing.getDirection();
-        final var rotationNormal = facing.getUnitVector();
+        final var axis = state.get(Properties.HORIZONTAL_FACING).rotateYClockwise().getAxis();
+        final var rotationNormal = DirectionUtilities.getAxisNormal(axis);
 
         matrices.push();
         final var p1 = ClientPhysicsStorage.get().lerpPos(body, tickDelta);
-
-        var posY = -p1.y;
         var angle = ClientPhysicsStorage.get().lerpAngle(body, tickDelta);
-        if(axisDir == Direction.AxisDirection.NEGATIVE) {
-            posY = -posY;
-            angle = -angle;
-        }
 
-        final var posX = 1.0 - p1.x; //ConnectingRodEntity.ORIGIN_X - p1.x;
-        double x = 0, z = 0;
-        switch (facing) {
-            case EAST ->  z = -posX;
-            case WEST ->  z =  posX;
-            case SOUTH -> x =  posX;
-            case NORTH -> x = -posX;
+        final double posX; // = 1.0 - Math.abs(p1.x); //ConnectingRodEntity.ORIGIN_X - p1.x;
+        if(p1.x > 0) posX =  1.0 - p1.x;
+        else         posX = -1.0 - p1.x;
+
+        double x = 0, y = 0, z = 0;
+        switch (axis) {
+            case X -> {
+                z = posX;
+                y = p1.y;
+            }
+            case Z -> {
+                x = posX;
+                y = -p1.y;
+            }
         }
 
         final var rot = new Quaternionf();
         rot.setAngleAxis(angle, rotationNormal.x(), rotationNormal.y(), rotationNormal.z());
-        matrices.translate(x, posY, z);
+        matrices.translate(x, y, z);
         matrices.multiply(rot, 0.5f, 0.5f, 0.5f);
 
         renderer.render(matrices.peek(), vertexConsumers.getBuffer(RenderLayers.getEntityBlockLayer(state, false)), state, bakedModel, 0, 0, 0, light, overlay);

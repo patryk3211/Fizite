@@ -7,13 +7,11 @@ import com.patryk3211.fizite.simulation.physics.simulation.IPhysicsStepHandler;
 import com.patryk3211.fizite.simulation.physics.simulation.PhysicsWorld;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
 import com.patryk3211.fizite.simulation.physics.simulation.constraints.Constraint;
-import com.patryk3211.fizite.utility.DirectionUtilities;
-import net.minecraft.nbt.*;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.*;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec2f;
 import net.minecraft.world.PersistentState;
 import net.minecraft.world.World;
@@ -25,19 +23,13 @@ public abstract class PhysicsStorage extends PersistentState {
     protected static PhysicsStorage clientStorage;
 
     protected static class PositionData {
-        public final Constraint[] constraints;
-//        public final RigidBody[] bodies;
-//        public final Constraint[] internalConstraints;
         public final PhysicsCapability capability;
 
         public IPhysicsStepHandler stepHandler;
         public IForceGenerator forceGenerator;
 
-        public PositionData(PhysicsCapability capability/*, RigidBody[] bodies, Constraint[] internalConstraints*/) {
+        public PositionData(PhysicsCapability capability) {
             this.capability = capability;
-//            this.bodies = bodies.clone();
-//            this.internalConstraints = internalConstraints != null ? internalConstraints.clone() : null;
-            this.constraints = new Constraint[3];
         }
     }
 
@@ -53,40 +45,6 @@ public abstract class PhysicsStorage extends PersistentState {
         return simulation;
     }
 
-    public void add(Constraint constraint, BlockPos position, Direction direction) {
-        if(direction.getDirection() == Direction.AxisDirection.NEGATIVE) {
-            // Add the negative offset to get the actual position of the boundary
-            position = position.add(direction.getVector());
-            // Get the opposite (positive) direction
-            direction = direction.getOpposite();
-        }
-
-        final var entry = dataMap.get(position);
-        if(entry == null) {
-            throw new IllegalStateException("Trying to put a constraint for a body which doesn't exist");
-        }
-
-        entry.constraints[DirectionUtilities.positiveDirectionIndex(direction)] = constraint;
-        simulation.addConstraint(constraint);
-    }
-
-    public void remove(BlockPos position, Direction direction) {
-        if(direction.getDirection() == Direction.AxisDirection.NEGATIVE) {
-            // Add the negative offset to get the actual position of the boundary
-            position = position.add(direction.getVector());
-            // Get the opposite (positive) direction
-            direction = direction.getOpposite();
-        }
-
-        final var entry = dataMap.get(position);
-        if(entry == null)
-            return;
-
-        final var constraint = entry.constraints[DirectionUtilities.positiveDirectionIndex(direction)];
-        entry.constraints[DirectionUtilities.positiveDirectionIndex(direction)] = null;
-        simulation.removeConstraint(constraint);
-    }
-
     public void add(Constraint constraint) {
         simulation.addConstraint(constraint);
     }
@@ -100,73 +58,7 @@ public abstract class PhysicsStorage extends PersistentState {
         return entry == null ? null : entry.capability;
     }
 
-//    public void clearPosition(BlockPos position) {
-//        for(final var dir : Direction.values()) {
-//            removeConstraint(position, dir);
-//        }
-//
-//        final var entry = dataMap.get(position);
-//        if(entry == null)
-//            return;
-//        if(entry.internalConstraints != null) {
-//            for (final var constraint : entry.internalConstraints) {
-//                simulation.removeConstraint(constraint);
-//            }
-//        }
-//        for(final var body : entry.bodies) {
-//            simulation.removeRigidBody(body);
-//        }
-//        if(entry.stepHandler != null)
-//            simulation.removeStepHandler(entry.stepHandler);
-//        if(entry.forceGenerator != null)
-//            simulation.removeForceGenerator(entry.forceGenerator);
-//        dataMap.remove(position);
-//    }
-
-//    public IPhysicsProvider getProvider(BlockPos position) {
-//        final var entry = dataMap.get(position);
-//        return entry != null ? entry.provider : null;
-//    }
-
-//    protected void processSides(IPhysicsProvider provider, BlockEntity entity) {
-//        // Process all directions and add constraints (if the neighbor provider exists)
-//        for(final var dir : Direction.values()) {
-//            if(provider.getConnectionType(dir) == PhysicalConnection.ConnectionType.NONE)
-//                continue;
-//            final BlockPos neighborPos = entity.getPos().offset(dir);
-//            final var neighborEntry = dataMap.get(neighborPos);
-//            if(neighborEntry == null)
-//                continue;
-//            final IPhysicsProvider neighbor = neighborEntry.provider;
-//            final var constraint = PhysicalConnection.makeConnection(dir, provider, neighbor);
-//            if(constraint != null) {
-//                // Can connect to this provider
-//                addConstraint(constraint, entity.getPos(), dir);
-//                // TODO: Make sure this doesn't get called twice for a single body cause some funky stuff might happen.
-//                // Constraint body index 0 is always the base entity's body, because of the way
-//                // that the constraint is created. See `PhysicalConnection::makeConnection`
-//                constraint.setBodyPosition(0);
-//
-//                provider.setExternalConstraint(dir, constraint);
-//                neighbor.setExternalConstraint(dir.getOpposite(), constraint);
-//            }
-//        }
-//    }
-
-//    protected PositionData createEntry(BlockEntity entity, IPhysicsProvider provider) {
-//        final var entry = new PositionData(provider, provider.bodies(), provider.internalConstraints());
-//        if(entity instanceof final IPhysicsStepHandler handler) {
-//            simulation.addStepHandler(handler);
-//            entry.stepHandler = handler;
-//        }
-//        if(entity instanceof final IForceGenerator generator) {
-//            simulation.addForceGenerator(generator);
-//            entry.forceGenerator = generator;
-//        }
-//        return entry;
-//    }
-
-    protected void createPositionEntry(BlockPos position, PhysicsCapability capability) {
+    protected PositionData createPositionEntry(BlockPos position, PhysicsCapability capability) {
         // Create a position entry for the capability
         final var data = new PositionData(capability);
         dataMap.put(position, data);
@@ -174,31 +66,32 @@ public abstract class PhysicsStorage extends PersistentState {
         // Check for other physics related capabilities
         final var entity = capability.getEntity();
         final var forceCap = entity.getCapability(ForceGeneratorCapability.class);
-        if(forceCap != null) {
-            simulation.addForceGenerator(forceCap);
+        if(forceCap != null)
             data.forceGenerator = forceCap;
-        }
+
         final var stepCap = entity.getCapability(StepHandlerCapability.class);
-        if(stepCap != null) {
-            simulation.addStepHandler(stepCap);
+        if(stepCap != null)
             data.stepHandler = stepCap;
-        }
+
+        return data;
     }
 
     public void add(BlockPos position, PhysicsCapability capability) {
         // Create a position entry for the capability
-        createPositionEntry(position, capability);
+        final var entry = createPositionEntry(position, capability);
+
+        // Add things to the simulation
+        if(entry.forceGenerator != null)
+            simulation.addForceGenerator(entry.forceGenerator);
+        if(entry.stepHandler != null)
+            simulation.addStepHandler(entry.stepHandler);
     }
 
     public void remove(BlockPos pos) {
-        // Get the position data
-        final var entry = dataMap.get(pos);
+        // Remove the position entry
+        final var entry = dataMap.remove(pos);
         if(entry == null)
             return;
-
-        // Remove all external constraints attached to this position
-        for(final var dir : Direction.values())
-            remove(pos, dir);
 
         // Remove all internal constraints and rigid bodies from the simulation
         if(entry.capability.internalConstraints != null) {
@@ -214,48 +107,7 @@ public abstract class PhysicsStorage extends PersistentState {
             simulation.removeStepHandler(entry.stepHandler);
         if(entry.forceGenerator != null)
             simulation.removeForceGenerator(entry.forceGenerator);
-
-        // Remove the position entry
-        dataMap.remove(pos);
     }
-    /* {
-        // Add all rigid bodies and internal constraints to the simulation
-//        for(final var body : capability.bodies)
-//            simulation.addRigidBody(body);
-//        if(capability.internalConstraints != null) {
-//            for (final var constraint : capability.internalConstraints) {
-//                simulation.addConstraint(constraint);
-//            }
-//        }
-//
-//        sidedAdd(position, capability);
-    }*/
-//    public void addBlockEntity(BlockEntity entity) {
-//        assert entity instanceof IPhysicsProvider : "Only IPhysicsProvider block entities can be added to PhysicsStorage";
-//        final var provider = (IPhysicsProvider) entity;
-//
-//        final var entry = createEntry(entity, provider);
-//        final var savedState = saveData.remove(entity.getPos());
-//
-//        int index = 0;
-//        for(final var body : entry.bodies) {
-//            simulation.addRigidBody(body);
-//            if(savedState != null) {
-//                // Set body state to save state for every body
-//                final var state = savedState[index++];
-//                final var bodyState = body.getState();
-//            }
-//        }
-//        if(entry.internalConstraints != null) {
-//            for (final var constraint : entry.internalConstraints) {
-//                simulation.addConstraint(constraint);
-//            }
-//        }
-//        dataMap.put(entity.getPos(), entry);
-//
-//        processSides(provider, entity);
-//
-//    }
 
     public void addStepHandler(IPhysicsStepHandler handler) {
         simulation.addStepHandler(handler);

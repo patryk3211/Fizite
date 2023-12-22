@@ -28,9 +28,10 @@ public class PipeCapability extends Capability implements ConnectableCapability.
         final var world = entity.getWorld();
         Objects.requireNonNull(world);
         final var prop = DirectionUtilities.asProperty(dir);
-        if (!entity.isRemoved() && entity.getCachedState().get(prop) != value) {
+        if (!entity.isRemoved() && world.isChunkLoaded(entity.getPos()) && entity.getCachedState().get(prop) != value) {
             final var newState = entity.getCachedState().with(prop, value);
-            entity.getWorld().setBlockState(entity.getPos(), newState, Block.NOTIFY_ALL);
+//            world.isChunkLoaded(gc)
+            world.setBlockState(entity.getPos(), newState, Block.NOTIFY_ALL);
         }
     }
 
@@ -60,6 +61,11 @@ public class PipeCapability extends Capability implements ConnectableCapability.
     }
 
     @Override
+    public void onUnload() {
+        connectableCapability.removeHandler(this);
+    }
+
+    @Override
     public void onConnect(@NotNull Direction dir) {
         if(!entity.isRemoved())
             updateState(dir, true);
@@ -80,16 +86,5 @@ public class PipeCapability extends Capability implements ConnectableCapability.
     public void onDisconnect(@NotNull Direction dir) {
         if(!entity.isRemoved())
             updateState(dir, false);
-
-        final var world = entity.getWorld();
-        Objects.requireNonNull(world);
-
-        final var neighbor = CapabilitiesBlockEntity.getEntity(world, entity.getPos().offset(dir));
-        // Since we are connected to this side it is probably safe to assume that the entity is not null
-        assert neighbor != null;
-        final var pipeCap = neighbor.getCapability(PipeCapability.class);
-        if(pipeCap == null || !pipeCap.connectableClass.equals(connectableClass))
-            return;
-        pipeCap.updateState(dir.getOpposite(), false);
     }
 }

@@ -10,8 +10,12 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 public class ConstraintSolver {
-    private static final double K_D = 10; // Applied to C_dot
-    private static final double K_S = 10; // Applied to C
+    private static final double K_D = 50; // Applied to C_dot
+    private static final double K_S = 500; // Applied to C
+
+    private static final double MAX_ERROR = 1E-4;
+    private static final double MIN_ERROR = 1E-5;
+    private static final int MAX_ITERATIONS = 1024;
 
     private DMatrixRMaj qDot;
     private DMatrixSparseCSC J;
@@ -122,10 +126,6 @@ public class ConstraintSolver {
         pMatrix = null;
         rMatrix = null;
     }
-
-    private static final double MAX_ERROR = 1E-4;
-    private static final double MIN_ERROR = 1E-5;
-    private static final int MAX_ITERATIONS = 1024;
 
     private boolean checkError(DMatrixRMaj x, DMatrixRMaj right) {
         for(int i = 0; i < x.numRows; ++i) {

@@ -127,17 +127,12 @@ public abstract class WrenchConnectableCapability<Z extends WrenchConnectableCap
                             // Valid connection state, get zone and fire connection handler
                             final var otherZoneIndex = stack.get(NBT_ZONE);
                             final var otherZone = connectCap.getZone(otherZoneIndex);
-                            final var result = connect(zone, connectCap, otherZone);
+                            final var result = connect(i, zone, connectCap, otherZoneIndex, otherZone);
+                            stack.setNbt(null);
                             if (result.result == ActionResult.SUCCESS) {
                                 // Connection has been made, store it for later use
-                                connections[i] = Connection.of(connectCap, otherZoneIndex);
-                                connectCap.connections[otherZoneIndex] = Connection.of(this, i);
-                                stack.setNbt(null);
-                                return new InteractionResult(ActionResult.SUCCESS, Text.translatable(MESSAGE_SUCCESS).setStyle(CommonStyles.GREEN));
-                            } else {
-                                // Connection was not made,
-                                // player should be informed by the connection handler
-                                stack.setNbt(null);
+                                result.message = Text.translatable(MESSAGE_SUCCESS).setStyle(CommonStyles.GREEN);
+//                                return new InteractionResult(ActionResult.SUCCESS, Text.translatable(MESSAGE_SUCCESS).setStyle(CommonStyles.GREEN));
                             }
                             return result;
                         } else {
@@ -162,9 +157,9 @@ public abstract class WrenchConnectableCapability<Z extends WrenchConnectableCap
                     final var conn = connections[i];
                     if(conn != null) {
                         final var disconnectCap = thisClass.cast(conn.otherCapability);
-                        disconnect(zone, disconnectCap, disconnectCap.getZone(conn.otherZoneIndex));
-                        disconnectCap.connections[conn.otherZoneIndex] = null;
-                        connections[i] = null;
+                        disconnect(i, zone, disconnectCap, conn.otherZoneIndex, disconnectCap.getZone(conn.otherZoneIndex));
+//                        disconnectCap.connections[conn.otherZoneIndex] = null;
+//                        connections[i] = null;
                         return new InteractionResult(ActionResult.SUCCESS, Text.translatable(MESSAGE_SUCCESS_DISCONNECT).setStyle(CommonStyles.GREEN));
                     }
                 }
@@ -176,23 +171,40 @@ public abstract class WrenchConnectableCapability<Z extends WrenchConnectableCap
         return new InteractionResult(ActionResult.PASS, null);
     }
 
-    public Vec3d transformLocalPos(Vec3d worldLocalPos) {
+    protected static Vec3d transformByFacing(Direction facing, Vec3d worldLocalPos) {
+        // Conduct some basic position transformations based on the facing of the block
+        return switch(facing) {
+            case NORTH -> worldLocalPos;
+            case SOUTH -> new Vec3d(1 - worldLocalPos.x, worldLocalPos.y, 1 - worldLocalPos.z);
+            case WEST -> new Vec3d(1 - worldLocalPos.z, worldLocalPos.y, worldLocalPos.x);
+            case EAST -> new Vec3d(worldLocalPos.z, worldLocalPos.y, 1 - worldLocalPos.x);
+            case UP -> new Vec3d(worldLocalPos.x, 1 - worldLocalPos.z, worldLocalPos.y);
+            case DOWN -> new Vec3d(worldLocalPos.x, worldLocalPos.z, 1 - worldLocalPos.y);
+        };
+    }
+
+    protected static Vec3d transformByAxis(Direction.Axis axis, Vec3d worldLocalPos) {
+        // Axis transform is just facing transform without half of the rotations
+        return switch (axis) {
+            case Z -> worldLocalPos;
+            case Y -> new Vec3d(worldLocalPos.x, worldLocalPos.z, 1 - worldLocalPos.y);
+            case X -> new Vec3d(1 - worldLocalPos.z, worldLocalPos.y, worldLocalPos.x);
+        };
+    }
+
+    protected Vec3d transformLocalPos(Vec3d worldLocalPos) {
         final var state = entity.getCachedState();
         if(state.contains(Properties.FACING) || state.contains(Properties.HORIZONTAL_FACING)) {
-            // Conduct some basic position transformations based on the facing of the block
+            // Transform the position using block's facing
             Direction facing;
             if(state.contains(Properties.FACING))
                 facing = state.get(Properties.FACING);
             else
                 facing = state.get(Properties.HORIZONTAL_FACING);
-            return switch(facing) {
-                case NORTH -> worldLocalPos;
-                case SOUTH -> new Vec3d(1 - worldLocalPos.x, worldLocalPos.y, 1 - worldLocalPos.z);
-                case WEST -> new Vec3d(1 - worldLocalPos.z, worldLocalPos.y, worldLocalPos.x);
-                case EAST -> new Vec3d(worldLocalPos.z, worldLocalPos.y, 1 - worldLocalPos.x);
-                case UP -> new Vec3d(worldLocalPos.x, 1 - worldLocalPos.z, worldLocalPos.y);
-                case DOWN -> new Vec3d(worldLocalPos.x, worldLocalPos.z, 1 - worldLocalPos.y);
-            };
+            return transformByFacing(facing, worldLocalPos);
+        } else if(state.contains(Properties.AXIS)) {
+            // Transform the position using block's axis
+            return transformByAxis(state.get(Properties.AXIS), worldLocalPos);
         }
         return worldLocalPos;
     }
@@ -208,11 +220,22 @@ public abstract class WrenchConnectableCapability<Z extends WrenchConnectableCap
             final var conn = connections[i];
             if(conn != null) {
                 final var otherCap = thisClass.cast(conn.otherCapability);
-                disconnect(zones.get(i), otherCap, otherCap.getZone(conn.otherZoneIndex));
+                disconnect(i, zones.get(i), otherCap, conn.otherZoneIndex, otherCap.getZone(conn.otherZoneIndex));
             }
         }
     }
 
-    public abstract InteractionResult connect(Z thisZone, C connectTo, Z otherZone);
-    public abstract void disconnect(Z thisZone, C disconnectFrom, Z otherZone);
+    public InteractionResult connect(int thisIndex, Z thisZone, C connectTo, int otherIndex, Z otherZone) {
+        connections[thisIndex] = Connection.of(connectTo, otherIndex);
+        connectTo.connections[otherIndex] = Connection.of(this, thisIndex);
+        return new InteractionResult(ActionResult.SUCCESS, null);
+    }
+    public void disconnect(int thisIndex, Z thisZone, C disconnectFrom, int otherIndex, Z otherZone) {
+        disconnectFrom.connections[otherIndex] = null;
+        connections[thisIndex] = null;
+    }
+
+    public static Box box(double x1, double y1, double z1, double x2, double y2, double z2) {
+        return new Box(x1 / 16.0, y1 / 16.0, z1 / 16.0, x2 / 16.0, y2 / 16.0, z2 / 16.0);
+    }
 }

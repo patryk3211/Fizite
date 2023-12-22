@@ -1,12 +1,10 @@
 package com.patryk3211.fizite.simulation;
 
 import com.patryk3211.fizite.Fizite;
-import com.patryk3211.fizite.simulation.physics.IPhysicsProvider;
 import com.patryk3211.fizite.simulation.physics.PhysicsCapability;
 import com.patryk3211.fizite.simulation.physics.PhysicsStorage;
 import com.patryk3211.fizite.simulation.physics.simulation.PhysicsWorld;
 import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
-import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.BlockPos;
 import org.joml.Vector2d;
@@ -63,33 +61,6 @@ public class ClientPhysicsStorage extends PhysicsStorage {
         if(internalConstraints != null)
             internalConstraints.forEachRemaining(simulation::addConstraint);
     }
-
-    //    @Override
-//    public void addBlockEntity(BlockEntity entity) {
-//        assert entity.getWorld() != null;
-//        ClientNetworking.sendBlockEntityRequest(entity.getPos(), entity.getWorld().getRegistryKey());
-//    }
-//
-//    public void addBlockEntity(BlockEntity entity, int[] bodyIndices) {
-//        assert entity instanceof IPhysicsProvider : "Only IPhysicsProvider block entities can be added to PhysicsStorage";
-//        final var provider = (IPhysicsProvider) entity;
-//
-//        final var entry = createEntry(entity, provider);
-//
-//        // Add all rigid bodies and internal constraints to the simulation
-//        int i = 0;
-//        for(final var body : entry.bodies) {
-//            simulation.addRigidBody(body, bodyIndices[i++]);
-//        }
-//        if(entry.internalConstraints != null) {
-//            for (final var constraint : entry.internalConstraints) {
-//                simulation.addConstraint(constraint);
-//            }
-//        }
-//        dataMap.put(entity.getPos(), entry);
-//
-//        processSides(provider, entity);
-//    }
 
     private void copyPositions() {
         final var system = physics.simulation.system();
@@ -154,11 +125,6 @@ public class ClientPhysicsStorage extends PhysicsStorage {
         return Math.atan2(lerped.y, lerped.x);
     }
 
-//    @SuppressWarnings("unused")
-//    public static void onBlockEntityUnload(BlockEntity entity, ClientWorld world) {
-//        physics.remove(entity.getPos());
-//    }
-//
     public void postUpdate() {
         simulation.fireStepHandler();
     }

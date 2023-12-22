@@ -17,7 +17,7 @@ public class PipeEntity extends CapabilitiesBlockEntity {
     public static final CapabilitiesBlockEntityTemplate<PipeEntity> TEMPLATE
             = new CapabilitiesBlockEntityTemplate<>(PipeEntity::new)
             .forBlock(AllBlocks.COPPER_PIPE)
-            .with(PipeEntity::makeGasCapability).as(GasCapability.class)
+            .with(PipeEntity::makeGasCapability) //.as(GasCapability.class)
             .with(() -> new PipeCapability(GasCapability.class))
 //            .with(ConstantPropertyGasCapability.class, GasCapability.class)
             .initialClientSync();

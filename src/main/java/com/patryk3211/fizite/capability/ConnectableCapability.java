@@ -20,7 +20,7 @@ public abstract class ConnectableCapability<C extends ConnectableCapability<?>> 
     protected final ConnectableCapability<?>[] connections;
     protected int connectionCount;
     private final Class<C> thisClass;
-    private final List<ConnectionHandler> handlers;
+    protected final List<ConnectionHandler> handlers;
 
     private ConnectableCapability(String name, Class<C> thisClass, int constantMask) {
         super(name);
@@ -68,6 +68,10 @@ public abstract class ConnectableCapability<C extends ConnectableCapability<?>> 
         handlers.add(handler);
     }
 
+    public void removeHandler(ConnectionHandler handler) {
+        handlers.remove(handler);
+    }
+
     /**
      * Update all connections by checking the mask difference,
      * this can result in new connections being formed as well
@@ -101,6 +105,7 @@ public abstract class ConnectableCapability<C extends ConnectableCapability<?>> 
                             ++connectionCount;
                             ++neighborCap.connectionCount;
                             handlers.forEach(h -> h.onConnect(dir));
+                            neighborCap.handlers.forEach(h -> h.onConnect(oDir));
                         }
                     }
                 } else {
@@ -108,6 +113,7 @@ public abstract class ConnectableCapability<C extends ConnectableCapability<?>> 
                     final var neighbor = connections[dir.getId()];
                     disconnect(dir, thisClass.cast(neighbor));
                     handlers.forEach(h -> h.onDisconnect(dir));
+                    neighbor.handlers.forEach(h -> h.onDisconnect(oDir));
                     --neighbor.connectionCount;
                     --connectionCount;
                     neighbor.connections[oDir.getId()] = null;
@@ -120,7 +126,7 @@ public abstract class ConnectableCapability<C extends ConnectableCapability<?>> 
     }
 
     @Override
-    public void onLoad() {
+    public void initialTick() {
         updateConnections();
     }
 
@@ -129,11 +135,14 @@ public abstract class ConnectableCapability<C extends ConnectableCapability<?>> 
         for(final var dir : Direction.values()) {
             final var conn = connections[dir.getId()];
             if(conn != null) {
+                final var oDir = dir.getOpposite();
                 disconnect(dir, thisClass.cast(conn));
                 handlers.forEach(h -> h.onDisconnect(dir));
+                conn.handlers.forEach(h -> h.onDisconnect(oDir));
                 --conn.connectionCount;
                 --connectionCount;
-                conn.connections[dir.getOpposite().getId()] = null;
+                connections[dir.getId()] = null;
+                conn.connections[oDir.getId()] = null;
             }
         }
     }

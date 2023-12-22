@@ -41,6 +41,12 @@ public class CrankShaft extends ModdedBlock implements BlockEntityProvider {
                     createCuboidShape(0, 6, 6, 1, 10, 10),
                     createCuboidShape(15, 6, 6, 16, 10, 10)
             ).simplify();
+    private static final VoxelShape BB_X =
+            VoxelShapes.union(
+                    createCuboidShape(2, 0, 1, 14, 12, 15),
+                    createCuboidShape(6, 6, 0, 10, 10, 1),
+                    createCuboidShape(6, 6, 15, 10, 10, 16)
+            ).simplify();
 
     public CrankShaft() {
         super(FabricBlockSettings.create().strength(5.0f));
@@ -69,11 +75,10 @@ public class CrankShaft extends ModdedBlock implements BlockEntityProvider {
 
     @Override
     public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-        return BB_Z;
+        return switch(state.get(Properties.HORIZONTAL_FACING).getAxis()) {
+            case X -> BB_X;
+            case Z -> BB_Z;
+            case Y -> throw new IllegalStateException();
+        };
     }
-//
-//    @Override
-//    protected void onBlockRemoved(BlockState state, World world, BlockPos pos) {
-//        PhysicsStorage.get(world).clearPosition(pos);
-//    }
 }

@@ -2,178 +2,112 @@ package com.patryk3211.fizite.simulation.physics;
 
 import com.patryk3211.fizite.Fizite;
 import com.patryk3211.fizite.simulation.Networking;
-import com.patryk3211.fizite.simulation.physics.simulation.RigidBody;
-import com.patryk3211.fizite.utility.Nbt;
-import io.wispforest.owo.nbt.NbtKey;
+import com.patryk3211.fizite.simulation.physics.simulation.constraints.Constraint;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtDouble;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtList;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import org.joml.Vector3d;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ServerPhysicsStorage extends PhysicsStorage {
     public static final String STORAGE_ID = Fizite.MOD_ID + ":physics_world";
-    public static final Type<ServerPhysicsStorage> TYPE = new Type<>(ServerPhysicsStorage::new, ServerPhysicsStorage::new, null);
+    public static final Type<ServerPhysicsStorage> TYPE = new Type<>(ServerPhysicsStorage::new, nbt -> new ServerPhysicsStorage(), null);
 
-    /* Nbt stuff for saving the simulation */
-    private record RigidBodyData(Vector3d position, Vector3d velocity) {
-        public static RigidBodyData decode(NbtCompound data) {
-            final var posNbt = data.getList("p", NbtElement.DOUBLE_TYPE);
-            final var position = new Vector3d(posNbt.getDouble(0), posNbt.getDouble(1), posNbt.getDouble(2));
-            final var velNbt = data.getList("v", NbtElement.DOUBLE_TYPE);
-            final var velocity = new Vector3d(velNbt.getDouble(0), velNbt.getDouble(1), velNbt.getDouble(2));
-            return new RigidBodyData(position, velocity);
-        }
+    private static final Map<RegistryKey<World>, ServerPhysicsStorage> simulations = new HashMap<>();
 
-        public static NbtCompound encode(RigidBodyData rigidBodyData) {
-            final var data = new NbtCompound();
-            final var posNbt = new NbtList();
-            posNbt.add(NbtDouble.of(rigidBodyData.position.x));
-            posNbt.add(NbtDouble.of(rigidBodyData.position.y));
-            posNbt.add(NbtDouble.of(rigidBodyData.position.z));
-            data.put("p", posNbt);
-            final var velNbt = new NbtList();
-            velNbt.add(NbtDouble.of(rigidBodyData.velocity.x));
-            velNbt.add(NbtDouble.of(rigidBodyData.velocity.y));
-            velNbt.add(NbtDouble.of(rigidBodyData.velocity.z));
-            data.put("v", velNbt);
-            return data;
-        }
-    }
-    private static final NbtKey.Type<RigidBodyData> NBT_TYPE_RIGID_BODY = NbtKey.Type.of(NbtElement.COMPOUND_TYPE, (nbt, key) -> {
-        final var data = nbt.getCompound(key);
-        return RigidBodyData.decode(data);
-    }, (nbt, key, data) -> {
-        final var compound = RigidBodyData.encode(data);
-        nbt.put(key, compound);
-    });
-    private static final NbtKey<RigidBodyData> NBT_RIGID_BODY = new NbtKey<>("rb", NBT_TYPE_RIGID_BODY);
-    private static final NbtKey<BlockPos> NBT_POSITION = new NbtKey<>("pos", Nbt.Type.BLOCK_POS);
-    private static final NbtKey<NbtList> NBT_BODIES = new NbtKey.ListKey<>("bodies", NBT_TYPE_RIGID_BODY);
-    private static final NbtKey<NbtList> NBT_POSITION_DATA = new NbtKey.ListKey<>("positionData", NbtKey.Type.COMPOUND);
-
-    private static final Map<RegistryKey<World>, PhysicsStorage> simulations = new HashMap<>();
-
-    private final Map<BlockPos, RigidBodyData[]> saveData;
     private RegistryKey<World> world;
+    private boolean redirtify = true;
 
-    public ServerPhysicsStorage() {
-        super();
-        saveData = new HashMap<>();
-    }
-
-    public ServerPhysicsStorage(NbtCompound nbt) {
-        this();
-        readNbt(nbt);
-    }
+    // We need to make sure that everything stays synchronized between the server and simulation threads,
+    // to achieve this we simply run functions which modify the simulation on the simulating thread.
+    private final Queue<Runnable> deferredActions = new ConcurrentLinkedQueue<>();
 
     @Override
     public void add(BlockPos position, PhysicsCapability capability) {
-        super.add(position, capability);
-
-        // Load the saved state
-        final var data = saveData.get(position);
+        final var entry = createPositionEntry(position, capability);
 
         // Add all rigid bodies and internal constraints to the simulation
-        int index = 0;
-        for(final var body : capability.bodies) {
-            simulation.addRigidBody(body);
-            if(data != null) {
-                final var bState = capability.bodies[index].getState();
-                final var sState = data[index];
+        deferredActions.add(() -> {
+            for(final var body : capability.bodies)
+                simulation.addRigidBody(body);
 
-                bState.position.x = sState.position.x;
-                bState.position.y = sState.position.y;
-                bState.positionA = sState.position.z;
-                bState.velocity.x = sState.velocity.x;
-                bState.velocity.y = sState.velocity.y;
-                bState.velocityA = sState.velocity.z;
-                ++index;
+            if(capability.internalConstraints != null) {
+                for (final var constraint : capability.internalConstraints) {
+                    simulation.addConstraint(constraint);
+                }
             }
-        }
-        if(capability.internalConstraints != null) {
-            for (final var constraint : capability.internalConstraints) {
-                simulation.addConstraint(constraint);
-            }
-        }
+
+            if(entry.forceGenerator != null)
+                simulation.addForceGenerator(entry.forceGenerator);
+            if(entry.stepHandler != null)
+                simulation.addStepHandler(entry.stepHandler);
+        });
 
         // Notify clients of a new physical entity
         Networking.physicsAdded(world, position, capability);
-    }
 
-    private RigidBodyData encodeBody(RigidBody body) {
-        final var state = body.getState();
-        return new RigidBodyData(
-                new Vector3d(state.position.x, state.position.y, state.positionA),
-                new Vector3d(state.velocity.x, state.velocity.y, state.velocityA)
-        );
+        // Mark entities for saving
+        redirtify = true;
     }
 
     @Override
-    public NbtCompound writeNbt(NbtCompound nbt) {
-        final var positionData = new NbtList();
-        dataMap.forEach((pos, data) -> {
-            final var entry = new NbtCompound();
-            entry.put(NBT_POSITION, pos);
-            if(data.capability.bodies.length == 1) {
-                // Encode a single body
-                entry.put(NBT_RIGID_BODY, encodeBody(data.capability.bodies[0]));
-            } else {
-                // Encode a body list
-                final var bodies = new NbtList();
-                for(final var body : data.capability.bodies)
-                    bodies.add(RigidBodyData.encode(encodeBody(body)));
-                entry.put(NBT_BODIES, bodies);
+    public void remove(BlockPos pos) {
+        // Remove the position entry
+        final var entry = dataMap.remove(pos);
+        if(entry == null)
+            return;
+
+        // Remove simulation elements
+        deferredActions.add(() -> {
+            // Remove all internal constraints and rigid bodies from the simulation
+            if(entry.capability.internalConstraints != null) {
+                for (final var constraint : entry.capability.internalConstraints) {
+                    simulation.removeConstraint(constraint);
+                }
             }
-            positionData.add(entry);
+            for(final var body : entry.capability.bodies)
+                simulation.removeRigidBody(body);
+
+            // Remove other capabilities
+            if(entry.stepHandler != null)
+                simulation.removeStepHandler(entry.stepHandler);
+            if(entry.forceGenerator != null)
+                simulation.removeForceGenerator(entry.forceGenerator);
         });
-        nbt.put(NBT_POSITION_DATA, positionData);
-        return nbt;
     }
 
-    public void readNbt(NbtCompound nbt) {
-        final var positionData = nbt.get(NBT_POSITION_DATA);
-        positionData.forEach(element -> {
-            if(!(element instanceof final NbtCompound entry))
-                return;
-            final var pos = entry.get(NBT_POSITION);
-            RigidBodyData[] data;
-            if(entry.has(NBT_RIGID_BODY)) {
-                // This entry has a single body
-                data = new RigidBodyData[] { entry.get(NBT_RIGID_BODY) };
-            } else {
-                // This entry has multiple bodies
-                NbtList bodies = entry.get(NBT_BODIES);
-                data = new RigidBodyData[bodies.size()];
-                for(int i = 0; i < bodies.size(); ++i)
-                    data[i] = RigidBodyData.decode(bodies.getCompound(i));
-            }
-            saveData.put(pos, data);
-        });
+    @Override
+    public void add(Constraint constraint) {
+        deferredActions.add(() -> simulation.addConstraint(constraint));
+    }
+
+    @Override
+    public void remove(Constraint constraint) {
+        deferredActions.add(() -> simulation.removeConstraint(constraint));
     }
 
     @Override
     public void save(File file) {
-        // Since even the smallest change need to be saved we just make
-        // this storage class constantly dirty.
-        markDirty();
-        super.save(file);
+        // We need to remark all entities as dirty
+        redirtify = true;
     }
 
     public static void simulateAll() {
-        simulations.forEach((key, sim) -> sim.simulation.simulate());
+        simulations.forEach((key, sim) -> {
+            // Run all deferred actions
+            Runnable action;
+            while((action = sim.deferredActions.poll()) != null)
+                action.run();
+
+            // Perform the simulation
+            sim.simulation.simulate();
+        });
     }
 
     public static ServerPhysicsStorage addToWorld(ServerWorld world) {
@@ -184,12 +118,12 @@ public class ServerPhysicsStorage extends PhysicsStorage {
     }
 
     public static void onWorldTickEnd(ServerWorld world) {
-//        get(world).dataMap.forEach((pos, data) -> {
-////            if(data.provider instanceof final BlockEntity blockEntity) {
-////                // Mark all block entities as dirty
-////                blockEntity.markDirty();
-////            }
-//        });
+        // Mark all block entities as dirty
+        final var storage = (ServerPhysicsStorage) get(world);
+        if(storage.redirtify) {
+            storage.dataMap.forEach((pos, data) -> data.capability.getEntity().markDirty());
+            storage.redirtify = false;
+        }
     }
 
     public static void syncStates(MinecraftServer server) {
